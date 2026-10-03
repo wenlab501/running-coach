@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>跑步與恢復儀表板</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.6.0/echarts.min.js" crossorigin="anonymous"></script>
+</head>
+<body>
+<main class="viz-root">
+  <section id="gate" class="gate">
+    <h1>跑步與恢復儀表板</h1>
+    <p class="muted">資料已加密，請輸入密碼。解密只在你的瀏覽器內進行。</p>
+    <form id="gate-form" autocomplete="off">
+      <label for="pw" class="sr-only">密碼</label>
+      <input id="pw" type="password" placeholder="密碼" autocomplete="current-password" required>
+      <button type="submit">開啟</button>
+    </form>
+    <p id="gate-msg" class="muted" role="status"></p>
+  </section>
+
+  <div id="app" hidden>
+    <header class="top">
+      <div>
+        <h1>跑步與恢復儀表板</h1>
+        <p class="muted" id="meta"></p>
+      </div>
+      <div class="filters" role="group" aria-label="時間範圍">
+        <button data-range="all">全部</button>
+        <button data-range="182" class="on">近 26 週</button>
+        <button data-range="84">近 12 週</button>
+        <button data-range="28">近 4 週</button>
+      </div>
+    </header>
+
+    <section class="tiles" id="tiles"></section>
+
+    <h2>訓練量</h2>
+    <div class="grid">
+      <div class="card wide" data-chart="weekly"></div>
+      <div class="card" data-chart="load"></div>
+      <div class="card" data-chart="acwr"></div>
+    </div>
+
+    <h2>有氧能力</h2>
+    <p class="note">固定外部負荷下的心率：跑步機用設定速度，戶外用穩態段（排除前 10 分鐘與最後 3 分鐘）。</p>
+    <div class="grid">
+      <div class="card" data-chart="tm_hr"></div>
+      <div class="card" data-chart="ef"></div>
+      <div class="card" data-chart="decouple"></div>
+      <div class="card" data-chart="vo2"></div>
+    </div>
+
+    <h2>課表表現</h2>
+    <div class="grid">
+      <div class="card" data-chart="iv_hr"></div>
+      <div class="card" data-chart="iv_rec"></div>
+      <div class="card wide" data-chart="threshold"></div>
+    </div>
+
+    <h2>跑姿（依速度區間比較）</h2>
+    <p class="note">步頻、步幅、觸地時間會隨速度改變，因此只比較同一速度區間。跑步機以設定速度分組；戶外以 GPS 速度每 0.5 km/h 分組。數值為手腕估計。</p>
+    <div class="filters inline" id="band-filter" role="group" aria-label="速度區間"></div>
+    <div class="grid three">
+      <div class="card" data-chart="dyn_cad"></div>
+      <div class="card" data-chart="dyn_step"></div>
+      <div class="card" data-chart="dyn_gct"></div>
+    </div>
+
+    <h2>恢復</h2>
+    <div class="grid">
+      <div class="card wide" data-chart="hrv"></div>
+      <div class="card" data-chart="rhr"></div>
+      <div class="card" data-chart="sleep"></div>
+      <div class="card" data-chart="sleep_score"></div>
+      <div class="card" data-chart="bb"></div>
+      <div class="card" data-chart="tr"></div>
+      <div class="card" data-chart="resp"></div>
+    </div>
+
+    <h2>主觀感受與客觀負荷</h2>
+    <div class="grid">
+      <div class="card" data-chart="srpe_vs_load"></div>
+      <div class="card" data-chart="fatigue_hrv"></div>
+    </div>
+
+    <h2>課程紀錄</h2>
+    <div class="filters inline" id="cat-filter" role="group" aria-label="課表類型"></div>
+    <div class="card wide table-card"><div id="session-table" class="table-wrap"></div></div>
+
+    <h2>方法說明</h2>
+    <div class="card wide notes">
+      <ul>
+        <li>資料來源：Garmin Forerunner 570 原始 FIT 檔與 Garmin Connect 每日恢復資料；課表類型、RPE、隔日疲勞感取自個人訓練日誌。2026-01-19 之前沒有日誌的課程，類型由 Garmin 資料自動推測（標示「推測」）。</li>
+        <li>一堂課＝同一天所有跑步活動。主訓練段與恢復段為演算法自動分段；與課表趟數不符者，各趟指標不列入趨勢圖。</li>
+        <li>步幅、觸地時間、垂直振幅為手腕加速規估計值，跑步機上的速度亦為手腕估計；跑步機課以設定速度為準。</li>
+        <li>心率、HRV、Body Battery、訓練準備度等皆為 Garmin 的估計值，只適合個人前後比較，不宜與一般族群標準比較。</li>
+        <li>所有圖表為描述性呈現；負荷與恢復指標並列不代表因果關係。</li>
+      </ul>
+    </div>
+    <footer class="muted" id="footer"></footer>
+  </div>
+</main>
+<script src="app.js"></script>
+</body>
+</html>
