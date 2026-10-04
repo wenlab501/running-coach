@@ -422,7 +422,7 @@ function renderBests() {
     <p class="card-sub">跑步機設定：A 長跑 ${vd.treadmill_anchors.A} km/h、B 閾值 ${vd.treadmill_anchors.B} km/h；半馬 2:30 約需 VDOT ${fmt(vd.vdot_for_hm_target, 1)}</p>` +
     tableHTML({ cols: ["依據", "日期", "距離", "時間", "VDOT", "E 速度 km/h", "T 速度 km/h", "半馬等效"],
       rows: vd.rows.map((r) => [r.source, r.date, r.label, mmss(r.time_s), fmt(r.vdot, 1), kmh(r.E_kmh), kmh(r.T_kmh), hms(r.hm_equiv_s)]) }) +
-    `<p class="evidence">${esc(vd.method)}。${esc(vd.caveat)}。3/28 比賽：手錶顯示起跑前約 5.5 分鐘幾乎原地不動，實際跑動約 35.4 分鐘，與大會時間 35:26 相符；但這段時間手錶 GPS 量到約 5.56 km，比 5 km 多約 11%，因此 GPS 片段推算的 VDOT 可能偏高。跑步機（0% 坡度）的能量成本低於戶外（Jones &amp; Doust 1996），也會讓跑步機速度高於戶外推算值。</p>` : "";
+    `<p class="evidence">${esc(vd.method)}。${esc(vd.caveat)}。3/28 比賽：手錶顯示起跑前約 5.5 分鐘幾乎原地不動，實際跑動約 35.4 分鐘，與大會晶片時間 35:26 相符；但這段時間手錶 GPS 量到約 5.56 km，比 5 km 多約 11%，因此 GPS 片段推算的 VDOT 可能偏高。跑步機（0% 坡度）的能量成本低於戶外（Jones &amp; Doust 1996），也會讓跑步機速度高於戶外推算值。</p>` : "";
   document.querySelectorAll("#tab-bests [data-chart]").forEach(renderCard);
 }
 
