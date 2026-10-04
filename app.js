@@ -195,19 +195,25 @@ const SPECS = {
   iv_hr: () => ivBox("work", "hr_end", "主訓練段結束時心率（bpm）", "每堂課一個箱形＝各趟分布；粗點＝中位數，小點＝每一趟；手腕心率在變速時有延遲"),
   iv_rec: () => ivBox("recovery", "drop60", "恢復段 60 秒心率下降（bpm）", "每堂課一個箱形＝各恢復段分布；粗點＝中位數，小點＝每一段"),
   threshold: () => {
-    const ss = S().filter((s) => s.cat === "threshold_treadmill" && s.hr_final_half && s.set_speed);
-    const qs = quarters(ss);
-    const qColor = (d) => css(`--q${4 - qs.length + qs.indexOf(quarterOf(d)) + 1}`);
-    const size = (m) => 8 + Math.sqrt(Math.max(m || 0, 1)) * 3;
+    const ss = S().filter((s) => s.cat === "threshold_treadmill" && s.hr_final_half && s.set_speed).sort((a, b) => (a.date < b.date ? -1 : 1));
+    // colour = test order on the light→dark ramp; size = duration scaled linearly over this set
+    const ramp = ["--q1", "--q2", "--q3", "--q4"].map(css);
+    const colorAt = (i) => rampColor(ramp, ss.length > 1 ? i / (ss.length - 1) : 1);
+    const mins = ss.map((s) => s.main_min || 0), mMin = Math.min(...mins), mMax = Math.max(...mins);
+    const size = (m) => (mMax > mMin ? 10 + 30 * ((m || 0) - mMin) / (mMax - mMin) : 22);
+    const md = (d) => `${+d.slice(5, 7)}/${+d.slice(8, 10)}`;
     return {
-      title: "閾值／LTHR 測試：速度與主段後半心率", sub: "點的大小＝主段持續時間；顏色越深越近期；色帶＝個人閾值區間 145–150 bpm",
-      legend: qs.map((q, i) => [q, css(`--q${4 - qs.length + i + 1}`)]),
-      option: base({ xAxis: valueX("設定速度（km/h）"), grid: { left: 46, right: 14, top: 14, bottom: 40 },
+      title: "閾值／LTHR 測試：速度與主段後半心率",
+      sub: ss.length ? `點越大＝主段越久（${fmt(mMin)}–${fmt(mMax)} 分）；顏色由淺到深＝由早到晚；色帶＝個人閾值區間 145–150 bpm` : "",
+      legend: ss.length ? [[`最早 ${ss[0].date}`, colorAt(0)], [`最近 ${ss.at(-1).date}`, colorAt(ss.length - 1)]] : [],
+      option: base({ xAxis: valueX("設定速度（km/h）"), grid: { left: 46, right: 18, top: 18, bottom: 40 },
         yAxis: { ...base().yAxis, name: "", min: (v) => Math.floor(Math.min(v.min - 3, 140)), max: (v) => Math.ceil(Math.max(v.max + 3, 152)) },
         tooltip: { ...base().tooltip, trigger: "item", formatter: itemTip((r) => [r.date, `設定 ${r.set_speed} km/h × ${fmt(r.main_min)} 分`, `後半平均心率 ${fmt(r.hr_final_half)} bpm`, `最後 5 分鐘 ${fmt(r.hr_last5)} bpm`, r.rpe ? `RPE ${r.rpe}` : "", r.plan || ""]) },
-        series: [{ type: "scatter", name: "測試", data: ss.map((s) => ({ value: [s.set_speed, s.hr_final_half], raw: s, symbolSize: size(s.main_min),
-            itemStyle: { color: qColor(s.date), opacity: 0.85, borderColor: css("--surface-1"), borderWidth: 2 } })),
-          markArea: { silent: true, itemStyle: { color: css("--band") }, label: { show: true, position: "insideTopLeft", color: css("--text-muted"), fontSize: 11 },
+        series: [{ type: "scatter", name: "測試", labelLayout: { hideOverlap: true },
+          label: { show: true, position: "right", distance: 6, color: css("--text-secondary"), fontSize: 10, formatter: (p) => md(p.data.raw.date) },
+          data: ss.map((s, i) => ({ value: [s.set_speed, s.hr_final_half], raw: s, symbolSize: size(s.main_min),
+            itemStyle: { color: colorAt(i), opacity: 0.9, borderColor: css("--surface-1"), borderWidth: 1.5 } })),
+          markArea: { silent: true, itemStyle: { color: css("--band") }, label: { show: true, position: "insideBottomLeft", color: css("--text-muted"), fontSize: 11 },
             data: [[{ yAxis: 145, name: "個人閾值區間" }, { yAxis: 150 }]] } }] }),
       table: { cols: ["日期", "設定速度", "主段分鐘", "主段平均", "後半平均", "最後 5 分鐘", "RPE", "課表"],
         rows: ss.map((s) => [s.date, s.set_speed, s.main_min, s.hr, s.hr_final_half, s.hr_last5, s.rpe ?? "—", s.plan || "—"]) },
@@ -386,6 +392,15 @@ function simpleLine(key, title, unit, sub) {
       series: [line(title, d.map((r) => [toT(r.date), r[key]]), css("--s1"), { showSymbol: false })] }),
     table: { cols: ["日期", title], rows: d.map((r) => [r.date, r[key]]) },
   };
+}
+
+function rampColor(stops, t) {
+  // linear interpolation between hex stops (t in 0..1)
+  const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const seg = Math.min(Math.floor(t * (stops.length - 1)), stops.length - 2);
+  const f = t * (stops.length - 1) - seg;
+  const a = rgb(stops[seg]), b = rgb(stops[seg + 1]);
+  return "#" + a.map((v, k) => Math.round(v + (b[k] - v) * f).toString(16).padStart(2, "0")).join("");
 }
 
 function quantile(v, p) {
