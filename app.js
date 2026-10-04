@@ -332,7 +332,7 @@ const SPECS = {
   resp: () => simpleLine("sleep_resp", "睡眠期間平均呼吸率（次/分）", "次/分", "跑步中無呼吸率紀錄"),
   sdc: () => {
     const { months, cum } = cumSpeedDuration();
-    const label = { 60: "1 分", 180: "3 分", 300: "5 分", 600: "10 分", 1200: "20 分", 2400: "40 分" };
+    const label = { 60: "1 分", 180: "3 分", 300: "5 分", 600: "10 分", 1200: "20 分", 2400: "40 分", 3600: "60 分" };
     const durs = Object.keys(label).map(Number);
     // three snapshots of the best-to-date curve: 6 months ago, 3 months ago, latest
     const snaps = [...new Set([months.at(-7), months.at(-4), months.at(-1)].filter(Boolean))];
@@ -342,7 +342,7 @@ const SPECS = {
       legend: snaps.map((m, i) => [`截至 ${m}`, q(i)]),
       // numeric log-scale duration axis (1–40 min spans 40×), labelled only at the measured durations
       option: base({ grid: { left: 46, right: 18, top: 14, bottom: 40 },
-        xAxis: { type: "log", logBase: 10, min: 0.8, max: 50, name: "持續時間（分鐘，對數尺度）", nameLocation: "middle", nameGap: 24,
+        xAxis: { type: "log", logBase: 10, min: 0.8, max: 75, name: "持續時間（分鐘，對數尺度）", nameLocation: "middle", nameGap: 24,
           nameTextStyle: { color: css("--text-muted"), fontSize: 11 }, axisLine: { lineStyle: { color: css("--axis") } },
           axisTick: { show: true, customValues: durs.map((d) => d / 60), lineStyle: { color: css("--axis") } },
           axisLabel: { color: css("--text-muted"), fontSize: 11, customValues: durs.map((d) => d / 60), formatter: (v) => `${+v.toFixed(1)}` },
@@ -393,7 +393,7 @@ SPECS.pb_progress = () => {
 
 SPECS.sdc_trend = () => {
   const { months, cum } = cumSpeedDuration();
-  const durs = [[60, "1 分"], [300, "5 分"], [1200, "20 分"], [2400, "40 分"]];
+  const durs = [[60, "1 分"], [300, "5 分"], [1200, "20 分"], [2400, "40 分"], [3600, "60 分"]];
   return {
     title: "各持續時間的歷史最佳速度（km/h）", sub: "累計到各月底為止；上升代表當月刷新紀錄，持平代表沒有",
     legend: durs.map(([, l], i) => [l, css(`--s${i + 1}`)]),
