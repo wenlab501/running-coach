@@ -72,6 +72,9 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
 h1.brand { display: flex; align-items: center; gap: 10px; }
 .gate h1.brand { justify-content: center; }
 h1.brand img { border-radius: 7px; flex: none; }
+h1.brand a.home { display: inline-flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; border-radius: 8px; }
+h1.brand a.home:hover { opacity: .8; }
+h1.brand a.home:focus-visible { outline: 2px solid var(--accent, #2a78d6); outline-offset: 3px; }
 .remember { display: block; font-size: 13px; color: var(--text-secondary); margin: 0 0 8px; }
 .remember input { vertical-align: -2px; margin-right: 4px; }
 
