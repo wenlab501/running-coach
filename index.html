@@ -9,7 +9,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#2a78d6">
-<link rel="stylesheet" href="style.css?v=20261004f">
+<link rel="stylesheet" href="style.css?v=20261004g">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.6.0/echarts.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
@@ -48,8 +48,8 @@
     <section id="tab-dashboard" class="tab" hidden>
       <div class="toolbar">
         <nav class="subnav" aria-label="區塊">
-          <a href="#sec-load">訓練負荷</a><a href="#sec-aerobic">有氧</a><a href="#sec-workout">課表</a>
-          <a href="#sec-form">跑姿</a><a href="#sec-recovery">恢復</a><a href="#sec-log">課程紀錄</a>
+          <a href="#sec-load">訓練負荷</a><a href="#sec-aerobic">有氧</a><a href="#sec-workout">強度課表</a>
+          <a href="#sec-form">跑姿</a><a href="#sec-recovery">疲勞恢復</a><a href="#sec-log">課程紀錄</a>
         </nav>
         <div class="filters" id="range-filter" role="group" aria-label="時間範圍">
           <button data-range="all">全部</button>
@@ -83,12 +83,15 @@
       </section>
 
       <section class="block" id="sec-workout">
-        <h2>課表表現</h2>
-        <p class="block-desc">間歇課看每趟結束時的心率與恢復段心率下降；閾值課看主段後半心率。</p>
-        <div class="grid">
+        <h2>強度課表心率反應</h2>
+        <p class="block-desc">分成兩個時期看：強度段（工作段的心率反應）與恢復段（結束後 60 秒心率下降）。間歇與閾值測試的負荷型態不同，各自比較前後變化，不互相比較。</p>
+        <div class="grid matrix">
+          <h3 class="col-head">間歇</h3>
+          <h3 class="col-head">閾值／LTHR 測試</h3>
           <div class="card" data-chart="iv_hr"></div>
+          <div class="card" data-chart="threshold"></div>
           <div class="card" data-chart="iv_rec"></div>
-          <div class="card wide" data-chart="threshold"></div>
+          <div class="card" data-chart="thr_rec"></div>
         </div>
       </section>
 
@@ -104,7 +107,7 @@
       </section>
 
       <section class="block" id="sec-recovery">
-        <h2>恢復</h2>
+        <h2>疲勞恢復</h2>
         <p class="block-desc">夜間 HRV、安靜心率、睡眠與 Garmin 的恢復估計，以及你記錄的隔日疲勞感。</p>
         <div class="grid">
           <div class="card wide" data-chart="hrv"></div>
@@ -236,6 +239,6 @@
     </section>
   </div>
 </main>
-<script src="app.js?v=20261004f"></script>
+<script src="app.js?v=20261004g"></script>
 </body>
 </html>

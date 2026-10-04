@@ -192,8 +192,8 @@ const SPECS = {
       table: { cols: ["日期", "VO2max"], rows: d.map((r) => [r.date, r.vo2max]) },
     };
   },
-  iv_hr: () => ivBox("work", "hr_end", "主訓練段結束時心率（bpm）", "每堂課一個箱形＝各趟分布；粗點＝中位數，小點＝每一趟；手腕心率在變速時有延遲"),
-  iv_rec: () => ivBox("recovery", "drop60", "恢復段 60 秒心率下降（bpm）", "每堂課一個箱形＝各恢復段分布；粗點＝中位數，小點＝每一段"),
+  iv_hr: () => ({ phase: "強度段", ...ivBox("work", "hr_end", "間歇：每趟結束時心率（bpm）", "每堂課一個箱形＝各趟分布；菱形＝中位數，小點＝每一趟；手腕心率在變速時有延遲") }),
+  iv_rec: () => ({ phase: "恢復段", ...ivBox("recovery", "drop60", "間歇：每段恢復 60 秒心率下降（bpm）", "每堂課一個箱形＝各恢復段分布；菱形＝中位數，小點＝每一段；越大代表恢復越快") }),
   threshold: () => {
     const ss = S().filter((s) => s.cat === "threshold_treadmill" && s.hr_final_half && s.set_speed).sort((a, b) => (a.date < b.date ? -1 : 1));
     // colour = test order on the light→dark ramp; size = duration scaled linearly over this set
@@ -203,7 +203,7 @@ const SPECS = {
     const size = (m) => (mMax > mMin ? 10 + 30 * ((m || 0) - mMin) / (mMax - mMin) : 22);
     const md = (d) => `${+d.slice(5, 7)}/${+d.slice(8, 10)}`;
     return {
-      title: "閾值／LTHR 測試：速度與主段後半心率",
+      phase: "強度段", title: "閾值測試：速度與主段後半心率",
       sub: ss.length ? `點越大＝主段越久（${fmt(mMin)}–${fmt(mMax)} 分）；顏色由淺到深＝由早到晚；色帶＝個人閾值區間 145–150 bpm` : "",
       legend: ss.length ? [[`最早 ${ss[0].date}`, colorAt(0)], [`最近 ${ss.at(-1).date}`, colorAt(ss.length - 1)]] : [],
       option: base({ xAxis: valueX("設定速度（km/h）"), grid: { left: 46, right: 18, top: 18, bottom: 40 },
@@ -217,6 +217,20 @@ const SPECS = {
             data: [[{ yAxis: 145, name: "個人閾值區間" }, { yAxis: 150 }]] } }] }),
       table: { cols: ["日期", "設定速度", "主段分鐘", "主段平均", "後半平均", "最後 5 分鐘", "RPE", "課表"],
         rows: ss.map((s) => [s.date, s.set_speed, s.main_min, s.hr, s.hr_final_half, s.hr_last5, s.rpe ?? "—", s.plan || "—"]) },
+    };
+  },
+  thr_rec: () => {
+    const ss = S().filter((s) => s.cat === "threshold_treadmill" && s.rec_drop60 != null);
+    const modes = [["步行", "--s1"], ["停止", "--s2"], ["慢跑", "--s3"]].filter(([m]) => ss.some((s) => s.rec_mode === m));
+    return {
+      phase: "恢復段", title: "閾值測試：主段結束後 60 秒心率下降（bpm）",
+      sub: "越大代表恢復越快；顏色＝恢復方式（停止與步行的下降幅度不同，比較時請看同一種方式）",
+      legend: modes.map(([m, c]) => [m, css(c)]),
+      option: base({ tooltip: { ...base().tooltip, trigger: "item", formatter: itemTip((r) => [r.date, `設定 ${r.set_speed} km/h × ${fmt(r.main_min)} 分`, `主段結束心率 ${fmt(r.hr_end_main)} bpm`, `60 秒後下降 ${fmt(r.rec_drop60, 1)} bpm（${r.rec_mode ?? "—"}）`]) },
+        series: modes.map(([m, c]) => dots(m, ss.filter((s) => s.rec_mode === m).map((s) => ({ value: [toT(s.date), s.rec_drop60], raw: s })), css(c),
+          { label: { show: true, position: "top", color: css("--text-secondary"), fontSize: 10, formatter: (p) => `${p.data.raw.set_speed}` }, labelLayout: { hideOverlap: true } })) }),
+      table: { cols: ["日期", "設定速度", "主段分鐘", "主段結束心率", "60 秒下降", "恢復方式"],
+        rows: ss.map((s) => [s.date, s.set_speed, s.main_min, s.hr_end_main, s.rec_drop60, s.rec_mode ?? "—"]) },
     };
   },
   dyn_rel: () => {
@@ -460,7 +474,7 @@ function renderCard(el) {
   const spec = SPECS[id]();
   const showTable = el.dataset.view === "table";
   const nData = spec.table.rows.length;
-  el.innerHTML = `<div class="card-head"><div><p class="card-title">${esc(spec.title)}</p><p class="card-sub">${esc(spec.sub || "")}</p></div>
+  el.innerHTML = `<div class="card-head"><div><p class="card-title">${spec.phase ? `<span class="phase">${esc(spec.phase)}</span>` : ""}${esc(spec.title)}</p><p class="card-sub">${esc(spec.sub || "")}</p></div>
     <button type="button" aria-pressed="${showTable}">${showTable ? "圖表" : "表格"}</button></div>` +
     (spec.legend && !showTable ? `<div class="legend">${spec.legend.map(([n, c]) => `<span><i style="background:${c}"></i>${esc(n)}</span>`).join("")}</div>` : "") +
     (nData === 0 ? `<div class="empty">此時間範圍沒有資料</div>` : showTable ? tableHTML(spec.table) : `<div class="chart"></div>`);
