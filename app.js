@@ -44,6 +44,10 @@ document.getElementById("gate-form").addEventListener("submit", (e) => {
   unlock(document.getElementById("pw").value, document.getElementById("remember").checked);
 });
 document.getElementById("logout").addEventListener("click", () => { sess.del(); local.del(); location.reload(); });
+// public summary on the password page (month-level periods and counts only; everything else is encrypted)
+fetch("data/public_summary.json", { cache: "no-store" }).then((r) => (r.ok ? r.json() : {})).then((p) => {
+  document.querySelectorAll("[data-pub]").forEach((el) => { const v = p[el.dataset.pub]; if (v != null) el.textContent = String(v); });
+}).catch(() => { /* leave placeholders */ });
 const saved = sess.get() || local.get();
 if (saved) unlock(saved, false);
 

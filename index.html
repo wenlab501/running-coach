@@ -9,14 +9,13 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#2a78d6">
-<link rel="stylesheet" href="style.css?v=20261004k">
+<link rel="stylesheet" href="style.css?v=20261004l">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.6.0/echarts.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
 <main class="viz-root">
   <section id="gate" class="gate">
     <h1 class="brand"><img src="icon.svg" alt="" width="30" height="30">我的個人化 AI 跑步教練</h1>
-    <p class="muted">資料已加密，請輸入密碼。解密只在你的瀏覽器內進行。</p>
     <form id="gate-form" autocomplete="off">
       <label for="pw" class="sr-only">密碼</label>
       <input id="pw" type="password" placeholder="密碼" autocomplete="current-password" required>
@@ -24,6 +23,43 @@
     </form>
     <label class="remember"><input type="checkbox" id="remember"> 在此裝置記住密碼（僅限私人裝置）</label>
     <p id="gate-msg" class="muted" role="status"></p>
+
+    <div class="intro">
+      <p class="lead">以個人 Garmin 紀錄為基礎，追蹤跑步訓練與身體恢復，並由 AI 教練依照個人基準提供訓練建議。</p>
+
+      <h2>資料期間</h2>
+      <ul>
+        <li>跑步紀錄：<span data-pub="run_from">—</span> – <span data-pub="run_to">—</span>（<span data-pub="n_sessions">—</span> 堂課：戶外 <span data-pub="n_outdoor">—</span>、跑步機 <span data-pub="n_treadmill">—</span>）</li>
+        <li>恢復紀錄：<span data-pub="rec_from">—</span> – <span data-pub="rec_to">—</span>（<span data-pub="n_rec_days">—</span> 天）</li>
+        <li>最後更新：<span data-pub="updated">—</span></li>
+      </ul>
+
+      <h2>資料來源</h2>
+      <ul>
+        <li>Garmin Forerunner 570：手腕光學心率</li>
+        <li>Garmin Connect 每日恢復指標</li>
+        <li>Notion 訓練日誌：課表、主觀費力程度（RPE）、隔日疲勞</li>
+      </ul>
+
+      <h2>彙整的參數</h2>
+      <ul>
+        <li><b>跑步</b>：距離、時間、配速、心率、步頻、步幅、觸地時間、垂直振幅；依課表切分暖身、主段、間歇、恢復段</li>
+        <li><b>恢復</b>：睡眠、HRV、靜止心率、壓力、Body Battery、訓練準備度與訓練狀態、呼吸、血氧</li>
+        <li><b>負荷</b>：Garmin 急性與慢性負荷、主觀訓練負荷（sRPE）</li>
+      </ul>
+
+      <h2>AI 教練</h2>
+      <ul>
+        <li>由 Claude 依自建的教練規則分析。規則設計參考兩個開源專案：josix/claude-running-coach 的未完成課表分級調整規則，以及 ColinEberhardt/claude-running-coach 的每週回顧流程。</li>
+        <li>以個人基準判斷變化：比較近 28 天與前 84 天，並以最小有意義變化（SWC）判定進步、穩定或退步。</li>
+        <li>參考的運動科學文獻：Foster 2001（sRPE）、Hopkins 2000（信度與 SWC）、Seiler 2010（強度分布）、Plews 2013（HRV）、Jones &amp; Vanhatalo 2017（臨界速度）、Impellizzeri 2020（ACWR 的限制）等；完整書目列在登入後的「方法與資料」。</li>
+        <li>未採用的方法：VDOT 配速與賽前減量期，因為訓練目標以穩定運動為主，不配合賽事週期。</li>
+        <li>建議僅供訓練參考，不取代醫療意見。</li>
+      </ul>
+
+      <h2>網站內容</h2>
+      <p>儀表板、最佳成績、數據解讀、教練建議、方法與資料</p>
+    </div>
   </section>
 
   <div id="app" hidden>
@@ -239,6 +275,6 @@
     </section>
   </div>
 </main>
-<script src="app.js?v=20261004k"></script>
+<script src="app.js?v=20261004l"></script>
 </body>
 </html>
