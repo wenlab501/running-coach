@@ -9,7 +9,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#2a78d6">
-<link rel="stylesheet" href="style.css?v=20261004o">
+<link rel="stylesheet" href="style.css?v=20261004p">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.6.0/echarts.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
@@ -251,6 +251,7 @@
           <li><b>狀態判定</b>：近 28 天（或最近 3 次）與前 84 天（或更早紀錄）的個人基準比較；最小有意義變化 SWC＝max(0.5 × 基準期標準差, 指標下限)。近期資料少於 2 筆或基準少於 3 筆時為「資料不足」；最近一筆超過 8 週為「資料過舊」。此為個人監測的分析慣例，並非經驗證的臨床門檻。</li>
           <li><b>強度</b>：以個人心率區間分為低（&lt; 133）、中（133–144）、高（≥ 145 bpm），並與 RPE 對照。心率與 RPE 不一致時，以 RPE 與配速為主要依據。</li>
           <li><b>sRPE</b>＝RPE × 訓練分鐘；每週單調度＝每日 sRPE 平均 ÷ 標準差，壓力值＝週 sRPE × 單調度（僅在該週每堂課都有 RPE 時計算）。</li>
+          <li><b>跑姿狀態</b>：取戶外 7.0–9.5 km/h、連續 ≥ 5 分鐘的片段，以個人「指標對速度」的線性斜率（近 112 天、依分鐘加權）校正到 8.0 km/h，每堂課一個值，再比較近 28 天與基準期。</li>
           <li><b>效率因子</b>＝速度（m/min）÷ 心率；<b>心率漂移</b>＝主段前後半效率因子的差異百分比。</li>
           <li><b>臨界速度</b>：距離–時間線性模型 d = CS·t + D′，使用訓練中的最佳片段，數值偏保守。</li>
           <li><b>半馬推估</b>：Riegel 公式（指數 1.06）與 Garmin 預測並列，兩者都有明顯限制，僅供參考。</li>
@@ -292,6 +293,6 @@
     </section>
   </div>
 </main>
-<script src="app.js?v=20261004o"></script>
+<script src="app.js?v=20261004p"></script>
 </body>
 </html>
