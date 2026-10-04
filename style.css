@@ -150,4 +150,9 @@ footer { margin-top: 24px; }
 @media (max-width: 760px) {
   .grid, .grid.three { grid-template-columns: minmax(0, 1fr); }
   .tile .value { font-size: 24px; }
+  .site-head { position: static; }
+  h1 { font-size: 18px; }
+  .tabs a { padding: 8px 10px; font-size: 14px; }
+  button.ghost { white-space: nowrap; }
+  .block { scroll-margin-top: 8px; }
 }

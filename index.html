@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>我的個人化 AI 跑步教練</title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=20261004b">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.6.0/echarts.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
@@ -33,6 +33,7 @@
       </div>
       <nav class="tabs" role="tablist" aria-label="頁面">
         <a role="tab" href="#dashboard" data-tab="dashboard">儀表板</a>
+        <a role="tab" href="#bests" data-tab="bests">最佳成績</a>
         <a role="tab" href="#assessment" data-tab="assessment">數據解讀</a>
         <a role="tab" href="#coach" data-tab="coach">教練建議</a>
         <a role="tab" href="#methods" data-tab="methods">方法與資料</a>
@@ -120,6 +121,34 @@
       </section>
     </section>
 
+    <!-- ===================== 最佳成績 ===================== -->
+    <section id="tab-bests" class="tab" hidden>
+      <section class="block">
+        <h2>戶外距離最佳成績</h2>
+        <p class="block-desc">任何一次戶外跑步中，連續跑完該距離的最短時間（含訓練片段與停頓），依 GPS 距離計算；比賽成績以大會計時為準。跑步機距離為手腕估計，不列入。</p>
+        <div class="grid">
+          <div class="card wide" id="pb-table"></div>
+          <div class="card wide" data-chart="pb_progress"></div>
+          <div class="card wide" id="pb-history"></div>
+        </div>
+      </section>
+      <section class="block">
+        <h2>跑步機最佳紀錄</h2>
+        <p class="block-desc">各設定速度連續跑的最長時間與紀錄演進，依訓練日誌的課表內容整理。</p>
+        <div class="grid">
+          <div class="card wide" id="tm-table"></div>
+        </div>
+      </section>
+      <section class="block">
+        <h2>速度與持續時間</h2>
+        <p class="block-desc">各持續時間的最佳平均速度（戶外 GPS，訓練中的最佳片段，非全力測試）。</p>
+        <div class="grid">
+          <div class="card" data-chart="sdc"></div>
+          <div class="card" data-chart="sdc_trend"></div>
+        </div>
+      </section>
+    </section>
+
     <!-- ===================== 數據解讀 ===================== -->
     <section id="tab-assessment" class="tab" hidden>
       <p class="lead" id="as-lead"></p>
@@ -134,11 +163,6 @@
           <div class="card" id="hm-milestones"></div>
           <div class="card" id="hm-estimates"></div>
         </div>
-      </section>
-      <section class="block">
-        <h2>速度與持續時間</h2>
-        <p class="block-desc">每月戶外訓練中各持續時間的最佳平均速度（非全力測試）。臨界速度以近 3 個月 3–20 分鐘的最佳片段估計。</p>
-        <div class="grid"><div class="card wide" data-chart="sdc"></div></div>
       </section>
       <section class="block">
         <h2>每週評估</h2>
@@ -208,6 +232,6 @@
     </section>
   </div>
 </main>
-<script src="app.js"></script>
+<script src="app.js?v=20261004b"></script>
 </body>
 </html>

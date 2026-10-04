@@ -291,6 +291,61 @@ const SPECS = {
   },
 };
 
+const mmss = (s) => s == null ? "—" : (s >= 3600 ? hms(s) : `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`);
+const PB_SERIES = ["1K", "3K", "5K", "10K"];
+
+SPECS.pb_progress = () => {
+  const b = state.data.assessment?.bests || {};
+  const mon = b.monthly || [];
+  const months = [...new Set(mon.map((r) => r.month))].sort();
+  const paceOf = (r) => r.time_s / (r.dist_m / 1000);
+  return {
+    title: "各距離每月最佳配速（分:秒／km）", sub: "越往上越快；每月取最快一次（含訓練片段）",
+    legend: PB_SERIES.map((l, i) => [l, css(`--s${i + 1}`)]),
+    option: base({ xAxis: { type: "category", data: months, axisLine: { lineStyle: { color: css("--axis") } }, axisTick: { show: false }, axisLabel: { color: css("--text-muted"), fontSize: 11 } },
+      yAxis: { ...base().yAxis, inverse: true, axisLabel: { color: css("--text-muted"), fontSize: 11, formatter: (v) => mmss(v) } },
+      tooltip: { ...base().tooltip, formatter: (ps) => `${ps[0].axisValue}<br>` + ps.filter((p) => p.value != null).map((p) => {
+        const r = mon.find((x) => x.label === p.seriesName && x.month === ps[0].axisValue);
+        return `${p.marker}${p.seriesName}：${mmss(r.time_s)}（${mmss(p.value)}/km）`; }).join("<br>") },
+      series: PB_SERIES.map((l, i) => line(l, months.map((m) => { const r = mon.find((x) => x.label === l && x.month === m); return r ? Math.round(paceOf(r)) : null; }),
+        css(`--s${i + 1}`), { showSymbol: true, connectNulls: true })) }),
+    table: { cols: ["月份", ...PB_SERIES], rows: months.map((m) => [m, ...PB_SERIES.map((l) => mmss(mon.find((x) => x.label === l && x.month === m)?.time_s))]) },
+  };
+};
+
+SPECS.sdc_trend = () => {
+  const sd = state.data.assessment?.speed_duration || [];
+  const months = [...new Set(sd.map((r) => r.month))].sort();
+  const durs = [[60, "1 分"], [300, "5 分"], [1200, "20 分"], [2400, "40 分"]];
+  return {
+    title: "各持續時間最佳速度的月變化（km/h）", sub: "越高越快；看進步軌跡",
+    legend: durs.map(([, l], i) => [l, css(`--s${i + 1}`)]),
+    option: base({ xAxis: { type: "category", data: months, axisLine: { lineStyle: { color: css("--axis") } }, axisTick: { show: false }, axisLabel: { color: css("--text-muted"), fontSize: 11 } },
+      tooltip: { ...base().tooltip, formatter: (ps) => `${ps[0].axisValue}<br>` + ps.filter((p) => p.value != null).map((p) => `${p.marker}${p.seriesName}：${fmt(p.value, 1)} km/h（${pace(p.value)}）`).join("<br>") },
+      series: durs.map(([d, l], i) => line(l, months.map((m) => sd.find((r) => r.month === m && r.dur_s === d)?.kmh ?? null), css(`--s${i + 1}`), { showSymbol: true, connectNulls: true })) }),
+    table: { cols: ["月份", ...durs.map(([, l]) => l)], rows: months.map((m) => [m, ...durs.map(([d]) => sd.find((r) => r.month === m && r.dur_s === d)?.kmh ?? "—")]) },
+  };
+};
+
+function renderBests() {
+  const b = state.data.assessment?.bests || {};
+  const garmin = Object.fromEntries((b.garmin || []).map((g) => [g.label, g]));
+  document.getElementById("pb-table").innerHTML = `<p class="card-title">目前最佳成績</p><p class="card-sub">「Garmin 官方」欄為 Garmin Connect 的個人紀錄，供對照</p>` +
+    tableHTML({ cols: ["距離", "最佳時間", "配速", "日期", "課程類型", "Garmin 官方"],
+      rows: (b.outdoor || []).map((r) => [r.label, mmss(r.time_s), pace(r.dist_m / 1000 / (r.time_s / 3600)), r.date, catLabel(r.cat),
+        garmin[r.label] ? `${mmss(garmin[r.label].value)}（${garmin[r.label].date || "—"}）` : "—"]) }) +
+    (garmin["最長距離"] ? `<p class="evidence">最長單次距離（Garmin）：${fmt(garmin["最長距離"].value / 1000, 2)} km（${garmin["最長距離"].date || "—"}）</p>` : "");
+  const hist = (b.history || []).filter((h) => h.improvement_s != null).slice().reverse();
+  document.getElementById("pb-history").innerHTML = `<p class="card-title">刷新紀錄的時間線</p><p class="card-sub">每一次超越先前最佳成績的紀錄（最新在上）</p>` +
+    tableHTML({ cols: ["日期", "距離", "新紀錄", "進步", "課程類型"],
+      rows: hist.map((h) => [h.date, h.label, mmss(h.time_s), `−${mmss(h.improvement_s)}`, catLabel(h.cat)]) });
+  document.getElementById("tm-table").innerHTML = `<p class="card-title">跑步機各速度最長連續時間</p>` +
+    tableHTML({ cols: ["設定速度", "配速", "最長時間（分）", "日期", "紀錄演進"],
+      rows: (b.treadmill || []).map((t) => [`${t.speed} km/h`, pace(t.speed), t.minutes, t.date,
+        t.history.map((h) => `${h.date.slice(5)}：${h.minutes} 分`).join(" → ")]) }, [4]);
+  document.querySelectorAll("#tab-bests [data-chart]").forEach(renderCard);
+}
+
 function quarterOf(date) { return `${date.slice(0, 4)} Q${Math.floor((+date.slice(5, 7) - 1) / 3) + 1}`; }
 function quarters(rows) { return [...new Set(rows.map((r) => quarterOf(r.date)))].sort().slice(-4); }
 
@@ -458,8 +513,6 @@ function renderAssessment() {
   document.getElementById("hm-estimates").innerHTML = `<p class="card-title">半馬完成時間推估</p><p class="card-sub">不同方法差距大，代表不確定性高；僅供參考</p>` +
     tableHTML({ cols: ["方法", "數值", "限制"], rows: est }, [2]);
 
-  document.querySelectorAll("#tab-assessment [data-chart]").forEach(renderCard);
-
   const wk = a.weeks.slice(-16).reverse();
   document.getElementById("week-table").innerHTML = tableHTML({
     cols: ["週（週一）", "跑步次數", "跑步分鐘", "距離 km", "最長一堂（分）", "強度課", "低／中／高強度 %", "高速跑（分）", "sRPE", "單調度", "網球（分）", "HRV 7 天", "安靜心率", "睡眠（時）", "提醒"],
@@ -503,7 +556,7 @@ function renderCoach() {
 }
 
 /* ================= tabs & init ================= */
-const TABS = ["dashboard", "assessment", "coach", "methods"];
+const TABS = ["dashboard", "bests", "assessment", "coach", "methods"];
 function showTab(tab) {
   if (!TABS.includes(tab)) tab = "dashboard";
   state.tab = tab;
@@ -512,7 +565,7 @@ function showTab(tab) {
     document.querySelector(`.tabs [data-tab="${t}"]`).setAttribute("aria-selected", t === tab ? "true" : "false");
   });
   if (!state.rendered[tab]) {
-    ({ dashboard: renderDashboard, assessment: renderAssessment, coach: renderCoach, methods: () => {} })[tab]();
+    ({ dashboard: renderDashboard, bests: renderBests, assessment: renderAssessment, coach: renderCoach, methods: () => {} })[tab]();
     state.rendered[tab] = true;
   }
   charts.forEach((c) => c.resize());
