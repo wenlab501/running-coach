@@ -338,11 +338,17 @@ const SPECS = {
     const snaps = [...new Set([months.at(-7), months.at(-4), months.at(-1)].filter(Boolean))];
     const q = (i) => css(`--q${4 - snaps.length + i + 1}`);
     return {
-      title: "速度–持續時間曲線：歷史最佳（km/h）", sub: "累計到該月底為止，各持續時間的最佳平均速度；曲線往上移代表進步",
+      title: "速度–持續時間曲線：歷史最佳（km/h）", sub: "累計到該月底為止，各持續時間的最佳平均速度；橫軸為對數尺度（分鐘）；曲線往上移代表進步",
       legend: snaps.map((m, i) => [`截至 ${m}`, q(i)]),
-      option: base({ xAxis: { type: "category", data: durs.map((d) => label[d]), axisLine: { lineStyle: { color: css("--axis") } }, axisTick: { show: false }, axisLabel: { color: css("--text-muted") } },
-        tooltip: { ...base().tooltip, formatter: (ps) => `${ps[0].axisValue}<br>` + ps.filter((p) => p.value != null).map((p) => `${p.marker}${p.seriesName}：${fmt(p.value, 1)} km/h（${pace(p.value)}）`).join("<br>") },
-        series: snaps.map((m, i) => line(`截至 ${m}`, durs.map((d) => cum[m]?.[d]?.kmh ?? null), q(i), { showSymbol: true })) }),
+      // numeric log-scale duration axis (1–40 min spans 40×), labelled only at the measured durations
+      option: base({ grid: { left: 46, right: 18, top: 14, bottom: 40 },
+        xAxis: { type: "log", logBase: 10, min: 0.8, max: 50, name: "持續時間（分鐘，對數尺度）", nameLocation: "middle", nameGap: 24,
+          nameTextStyle: { color: css("--text-muted"), fontSize: 11 }, axisLine: { lineStyle: { color: css("--axis") } },
+          axisTick: { show: true, customValues: durs.map((d) => d / 60), lineStyle: { color: css("--axis") } },
+          axisLabel: { color: css("--text-muted"), fontSize: 11, customValues: durs.map((d) => d / 60), formatter: (v) => `${+v.toFixed(1)}` },
+          splitLine: { show: false }, minorTick: { show: false } },
+        tooltip: { ...base().tooltip, formatter: (ps) => `${fmt(ps[0].value[0], 0)} 分<br>` + ps.filter((p) => p.value?.[1] != null).map((p) => `${p.marker}${p.seriesName}：${fmt(p.value[1], 1)} km/h（${pace(p.value[1])}）`).join("<br>") },
+        series: snaps.map((m, i) => line(`截至 ${m}`, durs.map((d) => [d / 60, cum[m]?.[d]?.kmh ?? null]), q(i), { showSymbol: true })) }),
       table: { cols: ["截至月份", ...durs.map((d) => label[d])], rows: months.map((m) => [m, ...durs.map((d) => cum[m]?.[d]?.kmh ?? "—")]) },
     };
   },
