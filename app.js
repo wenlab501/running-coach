@@ -200,11 +200,12 @@ const SPECS = {
     const ramp = ["--q1", "--q2", "--q3", "--q4"].map(css);
     const colorAt = (i) => rampColor(ramp, ss.length > 1 ? i / (ss.length - 1) : 1);
     const mins = ss.map((s) => s.main_min || 0), mMin = Math.min(...mins), mMax = Math.max(...mins);
-    const size = (m) => (mMax > mMin ? 10 + 30 * ((m || 0) - mMin) / (mMax - mMin) : 22);
+    // bubble AREA proportional to duration (diameter ∝ √minutes, no offset) so sizes are not exaggerated
+    const size = (m) => 36 * Math.sqrt(Math.max(m || 0, 1) / Math.max(mMax, 1));
     const md = (d) => `${+d.slice(5, 7)}/${+d.slice(8, 10)}`;
     return {
       phase: "強度段", title: "閾值測試：速度與主段後半心率",
-      sub: ss.length ? `點越大＝主段越久（${fmt(mMin)}–${fmt(mMax)} 分）；顏色由淺到深＝由早到晚；色帶＝個人閾值區間 145–150 bpm` : "",
+      sub: ss.length ? `點的面積與主段時間成正比（${fmt(mMin)}–${fmt(mMax)} 分）；顏色由淺到深＝由早到晚；色帶＝個人閾值區間 145–150 bpm` : "",
       legend: ss.length ? [[`最早 ${ss[0].date}`, colorAt(0)], [`最近 ${ss.at(-1).date}`, colorAt(ss.length - 1)]] : [],
       option: base({ xAxis: valueX("設定速度（km/h）"), grid: { left: 46, right: 18, top: 18, bottom: 40 },
         yAxis: { ...base().yAxis, name: "", min: (v) => Math.floor(Math.min(v.min - 3, 140)), max: (v) => Math.ceil(Math.max(v.max + 3, 152)) },
