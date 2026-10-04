@@ -416,6 +416,13 @@ function renderBests() {
     tableHTML({ cols: ["設定速度", "配速", "最長時間（分）", "日期", "紀錄演進"],
       rows: (b.treadmill || []).map((t) => [`${t.speed} km/h`, pace(t.speed), t.minutes, t.date,
         t.history.map((h) => `${h.date.slice(5)}：${h.minutes} 分`).join(" → ")]) }, [4]);
+  const vd = state.data.assessment?.vdot;
+  const kmh = (r) => (r ? `${fmt(r[0], 1)}–${fmt(r[1], 1)}` : "—");
+  document.getElementById("vdot-table").innerHTML = vd ? `<p class="card-title">VDOT 推算速度與跑步機設定對照</p>
+    <p class="card-sub">跑步機設定：A 長跑 ${vd.treadmill_anchors.A} km/h、B 閾值 ${vd.treadmill_anchors.B} km/h；半馬 2:30 約需 VDOT ${fmt(vd.vdot_for_hm_target, 1)}</p>` +
+    tableHTML({ cols: ["依據", "日期", "距離", "時間", "VDOT", "E 速度 km/h", "T 速度 km/h", "半馬等效"],
+      rows: vd.rows.map((r) => [r.source, r.date, r.label, mmss(r.time_s), fmt(r.vdot, 1), kmh(r.E_kmh), kmh(r.T_kmh), hms(r.hm_equiv_s)]) }) +
+    `<p class="evidence">${esc(vd.method)}。${esc(vd.caveat)}。3/28 比賽的大會時間與當天 GPS 最快 5 km 片段相差約 3.5 分鐘，兩種依據的 VDOT 因此差距大。跑步機（0% 坡度）的能量成本低於戶外（Jones &amp; Doust 1996），也會讓跑步機速度高於戶外推算值。</p>` : "";
   document.querySelectorAll("#tab-bests [data-chart]").forEach(renderCard);
 }
 
