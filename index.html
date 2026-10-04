@@ -5,13 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>我的個人化 AI 跑步教練</title>
-<link rel="stylesheet" href="style.css?v=20261004c">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#2a78d6">
+<link rel="stylesheet" href="style.css?v=20261004e">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.6.0/echarts.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
 <main class="viz-root">
   <section id="gate" class="gate">
-    <h1>我的個人化 AI 跑步教練</h1>
+    <h1 class="brand"><img src="icon.svg" alt="" width="30" height="30">我的個人化 AI 跑步教練</h1>
     <p class="muted">資料已加密，請輸入密碼。解密只在你的瀏覽器內進行。</p>
     <form id="gate-form" autocomplete="off">
       <label for="pw" class="sr-only">密碼</label>
@@ -26,7 +30,7 @@
     <header class="site-head">
       <div class="title-row">
         <div>
-          <h1>我的個人化 AI 跑步教練</h1>
+          <h1 class="brand"><img src="icon.svg" alt="" width="30" height="30">我的個人化 AI 跑步教練</h1>
           <p class="muted" id="meta"></p>
         </div>
         <button type="button" id="logout" class="ghost">登出此裝置</button>
@@ -141,7 +145,7 @@
       </section>
       <section class="block">
         <h2>速度與持續時間</h2>
-        <p class="block-desc">各持續時間的最佳平均速度（戶外 GPS，訓練中的最佳片段，非全力測試）。</p>
+        <p class="block-desc">各持續時間的最佳平均速度，累計到各月底為止的歷史最佳（戶外 GPS，含訓練中的片段，非全力測試）。</p>
         <div class="grid">
           <div class="card" data-chart="sdc"></div>
           <div class="card" data-chart="sdc_trend"></div>
@@ -232,6 +236,6 @@
     </section>
   </div>
 </main>
-<script src="app.js?v=20261004c"></script>
+<script src="app.js?v=20261004e"></script>
 </body>
 </html>

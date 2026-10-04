@@ -192,15 +192,23 @@ const SPECS = {
       table: { cols: ["日期", "VO2max"], rows: d.map((r) => [r.date, r.vo2max]) },
     };
   },
-  iv_hr: () => ivChart("work_hr_end", "主訓練段結束時心率（bpm，中位數）", "每趟最後 10 秒平均；手腕心率在變速時有延遲", "bpm"),
-  iv_rec: () => ivChart("rec_drop60", "恢復段 60 秒心率下降（bpm，中位數）", "主訓練段結束後 60 秒內下降的心跳數", "bpm"),
+  iv_hr: () => ivBox("work", "hr_end", "主訓練段結束時心率（bpm）", "每堂課一個箱形＝各趟分布；粗點＝中位數，小點＝每一趟；手腕心率在變速時有延遲"),
+  iv_rec: () => ivBox("recovery", "drop60", "恢復段 60 秒心率下降（bpm）", "每堂課一個箱形＝各恢復段分布；粗點＝中位數，小點＝每一段"),
   threshold: () => {
-    const ss = S().filter((s) => s.cat === "threshold_treadmill" && s.hr_final_half);
+    const ss = S().filter((s) => s.cat === "threshold_treadmill" && s.hr_final_half && s.set_speed);
+    const qs = quarters(ss);
+    const qColor = (d) => css(`--q${4 - qs.length + qs.indexOf(quarterOf(d)) + 1}`);
+    const size = (m) => 8 + Math.sqrt(Math.max(m || 0, 1)) * 3;
     return {
-      title: "閾值／LTHR 測試：主段後半平均心率（bpm）", sub: "點旁數字為設定速度（km/h）；測試方式各次不同",
-      option: base({ tooltip: { ...base().tooltip, trigger: "item", formatter: itemTip((r) => [r.date, `設定 ${r.set_speed} km/h × ${fmt(r.main_min)} 分`, `後半平均心率 ${fmt(r.hr_final_half)} bpm`, `最後 5 分鐘 ${fmt(r.hr_last5)} bpm`, r.rpe ? `RPE ${r.rpe}` : ""]) },
-        series: [dots("後半平均心率", ss.map((s) => ({ value: [toT(s.date), s.hr_final_half], raw: s })), css("--s3"),
-          { label: { show: true, position: "top", color: css("--text-secondary"), fontSize: 11, formatter: (p) => p.data.raw.set_speed } })] }),
+      title: "閾值／LTHR 測試：速度與主段後半心率", sub: "點的大小＝主段持續時間；顏色越深越近期；色帶＝個人閾值區間 145–150 bpm",
+      legend: qs.map((q, i) => [q, css(`--q${4 - qs.length + i + 1}`)]),
+      option: base({ xAxis: valueX("設定速度（km/h）"), grid: { left: 46, right: 14, top: 14, bottom: 40 },
+        yAxis: { ...base().yAxis, name: "", min: (v) => Math.floor(Math.min(v.min - 3, 140)), max: (v) => Math.ceil(Math.max(v.max + 3, 152)) },
+        tooltip: { ...base().tooltip, trigger: "item", formatter: itemTip((r) => [r.date, `設定 ${r.set_speed} km/h × ${fmt(r.main_min)} 分`, `後半平均心率 ${fmt(r.hr_final_half)} bpm`, `最後 5 分鐘 ${fmt(r.hr_last5)} bpm`, r.rpe ? `RPE ${r.rpe}` : "", r.plan || ""]) },
+        series: [{ type: "scatter", name: "測試", data: ss.map((s) => ({ value: [s.set_speed, s.hr_final_half], raw: s, symbolSize: size(s.main_min),
+            itemStyle: { color: qColor(s.date), opacity: 0.85, borderColor: css("--surface-1"), borderWidth: 2 } })),
+          markArea: { silent: true, itemStyle: { color: css("--band") }, label: { show: true, position: "insideTopLeft", color: css("--text-muted"), fontSize: 11 },
+            data: [[{ yAxis: 145, name: "個人閾值區間" }, { yAxis: 150 }]] } }] }),
       table: { cols: ["日期", "設定速度", "主段分鐘", "主段平均", "後半平均", "最後 5 分鐘", "RPE", "課表"],
         rows: ss.map((s) => [s.date, s.set_speed, s.main_min, s.hr, s.hr_final_half, s.hr_last5, s.rpe ?? "—", s.plan || "—"]) },
     };
@@ -209,14 +217,17 @@ const SPECS = {
     const [name, unit] = METRICS[state.metric];
     const rows = state.data.dynamics.filter((r) => r[state.metric] != null && inRange(r.date));
     const qs = quarters(rows);
+    const bands = [...new Set(rows.map((r) => r.band))].sort((a, b) => a - b);
+    // one line per quarter: median of the session medians in each speed band (bands with ≥ 2 sessions)
+    const cell = (q, b) => { const v = rows.filter((r) => quarterOf(r.date) === q && r.band === b).map((r) => r[state.metric]); return v.length >= 2 ? { med: quantile(v, 0.5), n: v.length } : null; };
     return {
-      title: `${name}與速度的關係（${unit}）`, sub: "每點＝一堂課在某速度區間 ≥ 2 分鐘的中位數；顏色越深越近期",
+      title: `${name}與速度的關係（${unit}，每季中位數）`, sub: "同一速度下，各季的線越分開代表跑姿有變化；顏色越深越近期；每點至少 2 堂課",
       legend: qs.map((q, i) => [q, css(`--q${4 - qs.length + i + 1}`)]),
-      option: base({ xAxis: valueX("速度（km/h）"), grid: { left: 46, right: 14, top: 14, bottom: 40 },
-        tooltip: { ...base().tooltip, trigger: "item", formatter: itemTip((r) => [r.date, `${r.env === "outdoor" ? "戶外" : "跑步機"} ${r.band} km/h · ${fmt(r.min, 1)} 分`, `${name}：${fmt(r[state.metric])} ${unit}`]) },
-        series: qs.map((q, i) => dots(q, rows.filter((r) => quarterOf(r.date) === q).map((r) => ({ value: [r.band + (r.env === "treadmill" ? 0.08 : -0.08), r[state.metric]], raw: r })),
-          css(`--q${4 - qs.length + i + 1}`), { symbolSize: 8 })) }),
-      table: { cols: ["日期", "環境", "速度區間", name], rows: rows.map((r) => [r.date, r.env === "outdoor" ? "戶外" : "跑步機", r.band, r[state.metric]]) },
+      option: base({ xAxis: { ...valueX("速度（km/h）"), min: bands[0], max: bands.at(-1) }, grid: { left: 46, right: 14, top: 14, bottom: 40 },
+        tooltip: { ...base().tooltip, trigger: "item", formatter: (p) => `${p.seriesName} · ${p.value[0]} km/h<br>${name} 中位數：${fmt(p.value[1])} ${unit}（${p.data.n} 堂）` },
+        series: qs.map((q, i) => ({ ...line(q, bands.map((b) => { const c = cell(q, b); return c ? { value: [b, +c.med.toFixed(1)], n: c.n } : null; }).filter(Boolean),
+          css(`--q${4 - qs.length + i + 1}`), { showSymbol: true, symbolSize: 7 }) })) }),
+      table: { cols: ["季度", ...bands.map((b) => `${b} km/h`)], rows: qs.map((q) => [q, ...bands.map((b) => { const c = cell(q, b); return c ? `${fmt(c.med)}（${c.n}）` : "—"; })]) },
     };
   },
   dyn_trend: () => {
@@ -276,20 +287,33 @@ const SPECS = {
   tr: () => simpleLine("tr", "晨間訓練準備度", "", "Garmin Training Readiness（起床後第一次評估，0–100）"),
   resp: () => simpleLine("sleep_resp", "睡眠期間平均呼吸率（次/分）", "次/分", "跑步中無呼吸率紀錄"),
   sdc: () => {
-    const sd = state.data.assessment?.speed_duration || [];
-    const months = [...new Set(sd.map((r) => r.month))].sort().slice(-3);
+    const { months, cum } = cumSpeedDuration();
     const label = { 60: "1 分", 180: "3 分", 300: "5 分", 600: "10 分", 1200: "20 分", 2400: "40 分" };
     const durs = Object.keys(label).map(Number);
+    // three snapshots of the best-to-date curve: 6 months ago, 3 months ago, latest
+    const snaps = [...new Set([months.at(-7), months.at(-4), months.at(-1)].filter(Boolean))];
+    const q = (i) => css(`--q${4 - snaps.length + i + 1}`);
     return {
-      title: "最佳平均速度（km/h）—近 3 個月", sub: "戶外 GPS；訓練中的最佳片段，非全力測試",
-      legend: months.map((m, i) => [m, css(`--s${i + 1}`)]),
+      title: "速度–持續時間曲線：歷史最佳（km/h）", sub: "累計到該月底為止，各持續時間的最佳平均速度；曲線往上移代表進步",
+      legend: snaps.map((m, i) => [`截至 ${m}`, q(i)]),
       option: base({ xAxis: { type: "category", data: durs.map((d) => label[d]), axisLine: { lineStyle: { color: css("--axis") } }, axisTick: { show: false }, axisLabel: { color: css("--text-muted") } },
         tooltip: { ...base().tooltip, formatter: (ps) => `${ps[0].axisValue}<br>` + ps.filter((p) => p.value != null).map((p) => `${p.marker}${p.seriesName}：${fmt(p.value, 1)} km/h（${pace(p.value)}）`).join("<br>") },
-        series: months.map((m, i) => line(m, durs.map((d) => sd.find((r) => r.month === m && r.dur_s === d)?.kmh ?? null), css(`--s${i + 1}`), { showSymbol: true })) }),
-      table: { cols: ["月份", ...durs.map((d) => label[d])], rows: [...new Set(sd.map((r) => r.month))].sort().map((m) => [m, ...durs.map((d) => sd.find((r) => r.month === m && r.dur_s === d)?.kmh ?? "—")]) },
+        series: snaps.map((m, i) => line(`截至 ${m}`, durs.map((d) => cum[m]?.[d]?.kmh ?? null), q(i), { showSymbol: true })) }),
+      table: { cols: ["截至月份", ...durs.map((d) => label[d])], rows: months.map((m) => [m, ...durs.map((d) => cum[m]?.[d]?.kmh ?? "—")]) },
     };
   },
 };
+
+function cumSpeedDuration() {
+  const sd = state.data.assessment?.speed_duration || [];
+  const months = [...new Set(sd.map((r) => r.month))].sort();
+  const cum = {}, best = {};
+  for (const m of months) {
+    for (const r of sd.filter((x) => x.month === m)) if (!best[r.dur_s] || r.kmh > best[r.dur_s].kmh) best[r.dur_s] = r;
+    cum[m] = { ...best };
+  }
+  return { months, cum };
+}
 
 const mmss = (s) => s == null ? "—" : (s >= 3600 ? hms(s) : `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`);
 const PB_SERIES = ["1K", "3K", "5K", "10K"];
@@ -299,31 +323,36 @@ SPECS.pb_progress = () => {
   const mon = b.monthly || [];
   const months = [...new Set(mon.map((r) => r.month))].sort();
   const paceOf = (r) => r.time_s / (r.dist_m / 1000);
+  // best-to-date: running minimum of the monthly bests
+  const cum = {};
+  for (const l of PB_SERIES) { let best = null; cum[l] = {};
+    for (const m of months) { const r = mon.find((x) => x.label === l && x.month === m); if (r && (best == null || r.time_s < best.time_s)) best = r; cum[l][m] = best; } }
   return {
-    title: "各距離每月最佳配速（分:秒／km）", sub: "越往上越快；每月取最快一次（含訓練片段）",
+    title: "各距離歷史最佳配速（分:秒／km）", sub: "累計到各月底為止的最佳成績；越往上越快，持平代表該月沒有刷新紀錄",
     legend: PB_SERIES.map((l, i) => [l, css(`--s${i + 1}`)]),
     option: base({ xAxis: { type: "category", data: months, axisLine: { lineStyle: { color: css("--axis") } }, axisTick: { show: false }, axisLabel: { color: css("--text-muted"), fontSize: 11 } },
       yAxis: { ...base().yAxis, inverse: true, axisLabel: { color: css("--text-muted"), fontSize: 11, formatter: (v) => mmss(v) } },
       tooltip: { ...base().tooltip, formatter: (ps) => `${ps[0].axisValue}<br>` + ps.filter((p) => p.value != null).map((p) => {
-        const r = mon.find((x) => x.label === p.seriesName && x.month === ps[0].axisValue);
-        return `${p.marker}${p.seriesName}：${mmss(r.time_s)}（${mmss(p.value)}/km）`; }).join("<br>") },
-      series: PB_SERIES.map((l, i) => line(l, months.map((m) => { const r = mon.find((x) => x.label === l && x.month === m); return r ? Math.round(paceOf(r)) : null; }),
-        css(`--s${i + 1}`), { showSymbol: true, connectNulls: true })) }),
-    table: { cols: ["月份", ...PB_SERIES], rows: months.map((m) => [m, ...PB_SERIES.map((l) => mmss(mon.find((x) => x.label === l && x.month === m)?.time_s))]) },
+        const r = cum[p.seriesName][ps[0].axisValue];
+        return `${p.marker}${p.seriesName}：${mmss(r.time_s)}（${mmss(p.value)}/km，${r.month}）`; }).join("<br>") },
+      series: PB_SERIES.map((l, i) => line(l, months.map((m) => { const r = cum[l][m]; return r ? Math.round(paceOf(r)) : null; }),
+        css(`--s${i + 1}`), { showSymbol: true, step: "end" })) }),
+    table: { cols: ["月份", ...PB_SERIES], rows: months.map((m) => [m, ...PB_SERIES.map((l) => mmss(cum[l][m]?.time_s))]) },
   };
 };
 
 SPECS.sdc_trend = () => {
-  const sd = state.data.assessment?.speed_duration || [];
-  const months = [...new Set(sd.map((r) => r.month))].sort();
+  const { months, cum } = cumSpeedDuration();
   const durs = [[60, "1 分"], [300, "5 分"], [1200, "20 分"], [2400, "40 分"]];
   return {
-    title: "各持續時間最佳速度的月變化（km/h）", sub: "越高越快；看進步軌跡",
+    title: "各持續時間的歷史最佳速度（km/h）", sub: "累計到各月底為止；上升代表當月刷新紀錄，持平代表沒有",
     legend: durs.map(([, l], i) => [l, css(`--s${i + 1}`)]),
     option: base({ xAxis: { type: "category", data: months, axisLine: { lineStyle: { color: css("--axis") } }, axisTick: { show: false }, axisLabel: { color: css("--text-muted"), fontSize: 11 } },
-      tooltip: { ...base().tooltip, formatter: (ps) => `${ps[0].axisValue}<br>` + ps.filter((p) => p.value != null).map((p) => `${p.marker}${p.seriesName}：${fmt(p.value, 1)} km/h（${pace(p.value)}）`).join("<br>") },
-      series: durs.map(([d, l], i) => line(l, months.map((m) => sd.find((r) => r.month === m && r.dur_s === d)?.kmh ?? null), css(`--s${i + 1}`), { showSymbol: true, connectNulls: true })) }),
-    table: { cols: ["月份", ...durs.map(([, l]) => l)], rows: months.map((m) => [m, ...durs.map(([d]) => sd.find((r) => r.month === m && r.dur_s === d)?.kmh ?? "—")]) },
+      tooltip: { ...base().tooltip, formatter: (ps) => `截至 ${ps[0].axisValue}<br>` + ps.filter((p) => p.value != null).map((p) => {
+        const r = cum[ps[0].axisValue][durs.find(([, l]) => l === p.seriesName)[0]];
+        return `${p.marker}${p.seriesName}：${fmt(p.value, 1)} km/h（${pace(p.value)}，${r.date}）`; }).join("<br>") },
+      series: durs.map(([d, l], i) => line(l, months.map((m) => cum[m]?.[d]?.kmh ?? null), css(`--s${i + 1}`), { showSymbol: true, step: "end" })) }),
+    table: { cols: ["截至月份", ...durs.map(([, l]) => l)], rows: months.map((m) => [m, ...durs.map(([d]) => cum[m]?.[d]?.kmh ?? "—")]) },
   };
 };
 
@@ -356,6 +385,37 @@ function simpleLine(key, title, unit, sub) {
     option: base({ tooltip: { ...base().tooltip, formatter: axisTip(unit) },
       series: [line(title, d.map((r) => [toT(r.date), r[key]]), css("--s1"), { showSymbol: false })] }),
     table: { cols: ["日期", title], rows: d.map((r) => [r.date, r[key]]) },
+  };
+}
+
+function quantile(v, p) {
+  const s = [...v].sort((a, b) => a - b); const i = (s.length - 1) * p; const lo = Math.floor(i);
+  return s[lo] + (s[Math.min(lo + 1, s.length - 1)] - s[lo]) * (i - lo);
+}
+
+function ivBox(role, key, title, sub) {
+  const reps = (state.data.reps || []).filter((r) => r.role === role && r[key] != null && inRange(r.date));
+  const dates = [...new Set(reps.map((r) => r.date))].sort();
+  const colOf = (cat) => css(cat === "interval_treadmill" ? "--s4" : "--s5");
+  const stats = dates.map((d) => { const g = reps.filter((r) => r.date === d); const v = g.map((r) => r[key]);
+    return { date: d, cat: g[0].cat, n: v.length, box: [Math.min(...v), quantile(v, 0.25), quantile(v, 0.5), quantile(v, 0.75), Math.max(...v)] }; });
+  const excluded = S().filter((s) => s.cat.startsWith("interval") && s.reliable === false).length;
+  const label = (d) => d.slice(2).replace(/-/g, "/");
+  return {
+    title, sub: sub + (excluded ? `；另有 ${excluded} 堂分段與課表不符，未列入` : ""),
+    legend: [["跑步機間歇", colOf("interval_treadmill")], ["戶外／操場間歇", colOf("interval_track")]],
+    option: base({
+      xAxis: { type: "category", data: dates.map(label), axisLine: { lineStyle: { color: css("--axis") } }, axisTick: { show: false }, axisLabel: { color: css("--text-muted"), fontSize: 11, rotate: dates.length > 10 ? 45 : 0 } },
+      grid: { left: 46, right: 14, top: 14, bottom: dates.length > 10 ? 52 : 30 },
+      tooltip: { ...base().tooltip, trigger: "item", formatter: (p) => { const s = stats[p.dataIndex] || stats[dates.map(label).indexOf(p.value?.[0])];
+        if (!s) return ""; return `${s.date} · ${catLabel(s.cat)}<br>${s.n} 段<br>中位數 ${fmt(s.box[2])} bpm<br>四分位 ${fmt(s.box[1])}–${fmt(s.box[3])}<br>範圍 ${fmt(s.box[0])}–${fmt(s.box[4])}`; } },
+      series: [
+        { name: "分布", type: "boxplot", boxWidth: [6, 18], data: stats.map((s) => ({ value: s.box, itemStyle: { color: "transparent", borderColor: colOf(s.cat), borderWidth: 1.5 } })) },
+        { name: "每段", type: "scatter", symbolSize: 4, silent: true, itemStyle: { color: css("--text-muted"), opacity: 0.6 },
+          data: reps.map((r, i) => [label(r.date), r[key]]) },
+        { name: "中位數", type: "scatter", symbolSize: 9, symbol: "diamond", data: stats.map((s) => ({ value: [label(s.date), s.box[2]], itemStyle: { color: colOf(s.cat) } })) },
+      ] }),
+    table: { cols: ["日期", "類型", "段數", "中位數", "Q1", "Q3", "最小", "最大"], rows: stats.map((s) => [s.date, catLabel(s.cat), s.n, ...[2, 1, 3, 0, 4].map((k) => +s.box[k].toFixed(1))]) },
   };
 }
 
@@ -582,7 +642,7 @@ function routeFromHash() {
 function init(data) {
   state.data = data;
   const m = data.meta;
-  document.getElementById("meta").textContent = `資料期間 ${m.first_date} – ${m.last_date} · ${m.n_sessions} 堂課（${m.n_inferred} 堂類型為推測）`;
+  document.getElementById("meta").textContent = `資料期間 ${m.first_date} – ${m.last_date} · ${m.n_sessions} 堂課`;
   document.getElementById("footer").textContent = `資料產生時間（UTC）：${m.generated_at}`;
   document.getElementById("range-filter").addEventListener("click", (e) => {
     const b = e.target.closest("button"); if (!b) return;
