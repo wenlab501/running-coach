@@ -9,7 +9,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#2a78d6">
-<link rel="stylesheet" href="style.css?v=20261004s">
+<link rel="stylesheet" href="style.css?v=20261004t">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.6.0/echarts.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
@@ -53,7 +53,7 @@
         <li>由 Claude 依自建的教練規則分析。規則設計參考兩個開源專案：josix/claude-running-coach 的未完成課表分級調整規則，以及 ColinEberhardt/claude-running-coach 的每週回顧流程。</li>
         <li>以個人基準判斷變化：比較近 28 天與前 84 天，並以最小有意義變化（SWC）判定進步、穩定或退步。</li>
         <li>參考的運動科學文獻：Foster 2001（sRPE）、Hopkins 2000（信度與 SWC）、Seiler 2010（強度分布）、Plews 2013（HRV）、Jones &amp; Vanhatalo 2017（臨界速度）、Impellizzeri 2020（ACWR 的限制）等；完整書目列在登入後的「方法與資料」。</li>
-        <li>教練實務體系與指引：Daniels《Daniels' Running Formula》第 4 版（強度分級、各類課表份量上限、VDOT 交叉檢查）、Hansons《Hansons Half-Marathon Method》（累積疲勞概念）、ACSM 運動處方指引、WHO 2020 身體活動指引。實務書籍內容依出版社說明與二手資料整理。</li>
+        <li>教練實務體系與指引：Daniels《Daniels' Running Formula》第 4 版（強度分級、各類課表份量上限、VDOT 交叉檢查）、Hansons《Hansons Half-Marathon Method》（累積疲勞原則、停跑後恢復步驟）、ACSM 運動處方指引第 12 版、WHO 2020 身體活動指引。Hansons 與 ACSM 依原書整理；Daniels 依出版社說明與二手資料整理。</li>
         <li>未採用的方法：以 VDOT 直接開配速課表、賽前減量期，因為訓練目標以穩定運動為主，不配合賽事週期。</li>
         <li>建議僅供訓練參考，不取代醫療意見。</li>
       </ul>
@@ -256,8 +256,8 @@
           <li><b>臨界速度</b>：距離–時間線性模型 d = CS·t + D′，使用訓練中的最佳片段，數值偏保守。</li>
           <li><b>半馬推估</b>：Riegel 公式（指數 1.06）與 Garmin 預測並列，兩者都有明顯限制，僅供參考。</li>
           <li><b>VDOT 交叉檢查</b>：以 Daniels &amp; Gilbert 的攝氧成本與可維持比例方程式，由比賽或訓練片段時間求 VDOT，再換算 E（59–74%）與 T（83–88%）速度，對照跑步機設定。百分比依二手資料整理；VDOT 假設全力比賽，訓練片段與 GPS 誤差會造成偏差。</li>
-          <li><b>教練實務體系</b>：Daniels 的強度分級（E／M／T／I／R）與各類課表份量上限（T 每次 ≤ 週量 10%、I ≤ 8%、R ≤ 5%，依二手資料整理）；Hansons 的「累積疲勞」概念（平日課表維持固定、不靠單次長跑堆量）。兩者皆為教練實務書籍，非研究證據。</li>
-          <li><b>指引</b>：WHO 2020 身體活動指引作為穩定運動的基本量參考；ACSM 運動處方指引的原則：心率反應受影響時，以 RPE 與速度為主要強度依據。</li>
+          <li><b>教練實務體系</b>：Daniels 的強度分級（E／M／T／I／R）與各類課表份量上限（T 每次 ≤ 週量 10%、I ≤ 8%、R ≤ 5%，依二手資料整理）；Hansons 的「累積疲勞」原則（輕鬆跑要真正輕鬆、強度課不超過規定配速、強度課之間隔一天輕鬆或休息、維持固定週課表）與停跑後的恢復步驟（依原書整理）。兩者皆為教練實務書籍，非研究證據。</li>
+          <li><b>指引</b>：WHO 2020 身體活動指引與 ACSM 第 12 版（第 5 章表 5.1）的每週有氧量（中等強度 150–300 分鐘或高強度 75–150 分鐘）與肌力 ≥ 2 天，作為穩定運動的基本量；ACSM 的原則：心率反應受影響時，心率目標應以相同條件下實測的心率為準，否則以 RPE 為主（依原書整理）。</li>
         </ul></div>
       </section>
       <section class="block">
@@ -280,10 +280,10 @@
           <li>Daniels J, Gilbert J. (1979). <i>Oxygen Power: Performance Tables for Distance Runners</i>. Tempe, AZ: authors.（VDOT 方程式出處；方程式依二手資料轉載）</li>
           <li>Hopkins WG. (2000). Measures of reliability in sports medicine and science. <i>Sports Medicine</i>, 30(1), 1–15. doi:10.2165/00007256-200030010-00001</li>
           <li>Impellizzeri FM, et al. (2020). Acute:chronic workload ratio: conceptual issues and fundamental pitfalls. <i>International Journal of Sports Physiology and Performance</i>, 15(6), 907–913. doi:10.1123/ijspp.2019-0864</li>
-          <li>Humphrey L, Hanson K, Hanson K. (2014). <i>Hansons Half-Marathon Method</i>. VeloPress. ISBN 9781937715199.（教練實務書籍；內容依出版社說明與二手資料整理）</li>
+          <li>Humphrey L, Hanson K, Hanson K. (2014). <i>Hansons Half-Marathon Method</i>. VeloPress. ISBN 9781937715199.（教練實務書籍；依原書整理）</li>
           <li>Jones AM, Doust JH. (1996). A 1% treadmill grade most accurately reflects the energetic cost of outdoor running. <i>Journal of Sports Sciences</i>, 14(4), 321–327. doi:10.1080/02640419608727717</li>
           <li>Jones AM, Vanhatalo A. (2017). The ‘critical power’ concept: applications to sports performance with a focus on intermittent high-intensity exercise. <i>Sports Medicine</i>, 47(Suppl 1), 65–78. doi:10.1007/s40279-017-0688-0</li>
-          <li>Liguori G (Ed.). (2022). <i>ACSM's Guidelines for Exercise Testing and Prescription</i> (11th ed.). Wolters Kluwer.（內容依二手資料整理）</li>
+          <li>Ozemek C, Bonikowske AR, Christle JW, Gallo PM (Eds.). (2025). <i>ACSM's Guidelines for Exercise Testing and Prescription</i> (12th ed.). Wolters Kluwer. ISBN 9781975219208.（依原書整理）</li>
           <li>Plews DJ, et al. (2013). Training adaptation and heart rate variability in elite endurance athletes: opening the door to effective monitoring. <i>Sports Medicine</i>, 43(9), 773–781. doi:10.1007/s40279-013-0071-8</li>
           <li>Riegel PS. (1981). Athletic records and human endurance. <i>American Scientist</i>, 69(3), 285–290.</li>
           <li>Seiler S. (2010). What is best practice for training intensity and duration distribution in endurance athletes? <i>International Journal of Sports Physiology and Performance</i>, 5(3), 276–291. doi:10.1123/ijspp.5.3.276</li>
@@ -293,6 +293,6 @@
     </section>
   </div>
 </main>
-<script src="app.js?v=20261004s"></script>
+<script src="app.js?v=20261004t"></script>
 </body>
 </html>
