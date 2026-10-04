@@ -4,103 +4,208 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>跑步與恢復儀表板</title>
+<title>我的個人化 AI 跑步教練</title>
 <link rel="stylesheet" href="style.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.6.0/echarts.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
 <main class="viz-root">
   <section id="gate" class="gate">
-    <h1>跑步與恢復儀表板</h1>
+    <h1>我的個人化 AI 跑步教練</h1>
     <p class="muted">資料已加密，請輸入密碼。解密只在你的瀏覽器內進行。</p>
     <form id="gate-form" autocomplete="off">
       <label for="pw" class="sr-only">密碼</label>
       <input id="pw" type="password" placeholder="密碼" autocomplete="current-password" required>
       <button type="submit">開啟</button>
     </form>
+    <label class="remember"><input type="checkbox" id="remember"> 在此裝置記住密碼（僅限私人裝置）</label>
     <p id="gate-msg" class="muted" role="status"></p>
   </section>
 
   <div id="app" hidden>
-    <header class="top">
-      <div>
-        <h1>跑步與恢復儀表板</h1>
-        <p class="muted" id="meta"></p>
+    <header class="site-head">
+      <div class="title-row">
+        <div>
+          <h1>我的個人化 AI 跑步教練</h1>
+          <p class="muted" id="meta"></p>
+        </div>
+        <button type="button" id="logout" class="ghost">登出此裝置</button>
       </div>
-      <div class="filters" role="group" aria-label="時間範圍">
-        <button data-range="all">全部</button>
-        <button data-range="182" class="on">近 26 週</button>
-        <button data-range="84">近 12 週</button>
-        <button data-range="28">近 4 週</button>
-      </div>
+      <nav class="tabs" role="tablist" aria-label="頁面">
+        <a role="tab" href="#dashboard" data-tab="dashboard">儀表板</a>
+        <a role="tab" href="#assessment" data-tab="assessment">數據解讀</a>
+        <a role="tab" href="#coach" data-tab="coach">教練建議</a>
+        <a role="tab" href="#methods" data-tab="methods">方法與資料</a>
+      </nav>
     </header>
 
-    <section class="tiles" id="tiles"></section>
+    <!-- ===================== 儀表板 ===================== -->
+    <section id="tab-dashboard" class="tab" hidden>
+      <div class="toolbar">
+        <nav class="subnav" aria-label="區塊">
+          <a href="#sec-load">訓練負荷</a><a href="#sec-aerobic">有氧</a><a href="#sec-workout">課表</a>
+          <a href="#sec-form">跑姿</a><a href="#sec-recovery">恢復</a><a href="#sec-log">課程紀錄</a>
+        </nav>
+        <div class="filters" id="range-filter" role="group" aria-label="時間範圍">
+          <button data-range="all">全部</button>
+          <button data-range="182" class="on">近 26 週</button>
+          <button data-range="84">近 12 週</button>
+          <button data-range="28">近 4 週</button>
+        </div>
+      </div>
 
-    <h2>訓練量</h2>
-    <div class="grid">
-      <div class="card wide" data-chart="weekly"></div>
-      <div class="card" data-chart="load"></div>
-      <div class="card" data-chart="acwr"></div>
-    </div>
+      <section class="tiles" id="tiles" aria-label="本週摘要"></section>
 
-    <h2>有氧能力</h2>
-    <p class="note">固定外部負荷下的心率：跑步機用設定速度，戶外用穩態段（排除前 10 分鐘與最後 3 分鐘）。</p>
-    <div class="grid">
-      <div class="card" data-chart="tm_hr"></div>
-      <div class="card" data-chart="ef"></div>
-      <div class="card" data-chart="decouple"></div>
-      <div class="card" data-chart="vo2"></div>
-    </div>
+      <section class="block" id="sec-load">
+        <h2>訓練負荷</h2>
+        <p class="block-desc">跑步時間、Garmin 計算的負荷，以及你主觀感受的負荷（sRPE）。</p>
+        <div class="grid">
+          <div class="card wide" data-chart="weekly"></div>
+          <div class="card" data-chart="load"></div>
+          <div class="card" data-chart="srpe_week"></div>
+        </div>
+      </section>
 
-    <h2>課表表現</h2>
-    <div class="grid">
-      <div class="card" data-chart="iv_hr"></div>
-      <div class="card" data-chart="iv_rec"></div>
-      <div class="card wide" data-chart="threshold"></div>
-    </div>
+      <section class="block" id="sec-aerobic">
+        <h2>有氧能力</h2>
+        <p class="block-desc">固定外部負荷下的心率反應。跑步機以設定速度比較；戶外以穩態段（排除前 10 分鐘與最後 3 分鐘）計算。</p>
+        <div class="grid">
+          <div class="card" data-chart="tm_hr"></div>
+          <div class="card" data-chart="ef"></div>
+          <div class="card" data-chart="decouple"></div>
+          <div class="card" data-chart="vo2"></div>
+        </div>
+      </section>
 
-    <h2>跑姿（依速度區間比較）</h2>
-    <p class="note">步頻、步幅、觸地時間會隨速度改變，因此只比較同一速度區間。跑步機以設定速度分組；戶外以 GPS 速度每 0.5 km/h 分組。數值為手腕估計。</p>
-    <div class="filters inline" id="band-filter" role="group" aria-label="速度區間"></div>
-    <div class="grid three">
-      <div class="card" data-chart="dyn_cad"></div>
-      <div class="card" data-chart="dyn_step"></div>
-      <div class="card" data-chart="dyn_gct"></div>
-    </div>
+      <section class="block" id="sec-workout">
+        <h2>課表表現</h2>
+        <p class="block-desc">間歇課看每趟結束時的心率與恢復段心率下降；閾值課看主段後半心率。</p>
+        <div class="grid">
+          <div class="card" data-chart="iv_hr"></div>
+          <div class="card" data-chart="iv_rec"></div>
+          <div class="card wide" data-chart="threshold"></div>
+        </div>
+      </section>
 
-    <h2>恢復</h2>
-    <div class="grid">
-      <div class="card wide" data-chart="hrv"></div>
-      <div class="card" data-chart="rhr"></div>
-      <div class="card" data-chart="sleep"></div>
-      <div class="card" data-chart="sleep_score"></div>
-      <div class="card" data-chart="bb"></div>
-      <div class="card" data-chart="tr"></div>
-      <div class="card" data-chart="resp"></div>
-    </div>
+      <section class="block" id="sec-form">
+        <h2>跑姿</h2>
+        <p class="block-desc">步頻、步幅、觸地時間都會隨速度改變。左圖看跑姿與速度的關係（顏色越深越近期）；右圖看同一速度區間的長期變化。數值為手腕估計。</p>
+        <div class="filters inline" id="metric-filter" role="group" aria-label="跑姿指標"></div>
+        <div class="filters inline" id="band-filter" role="group" aria-label="速度區間"></div>
+        <div class="grid">
+          <div class="card" data-chart="dyn_rel"></div>
+          <div class="card" data-chart="dyn_trend"></div>
+        </div>
+      </section>
 
-    <h2>主觀感受與客觀負荷</h2>
-    <div class="grid">
-      <div class="card" data-chart="srpe_vs_load"></div>
-      <div class="card" data-chart="fatigue_hrv"></div>
-    </div>
+      <section class="block" id="sec-recovery">
+        <h2>恢復</h2>
+        <p class="block-desc">夜間 HRV、安靜心率、睡眠與 Garmin 的恢復估計，以及你記錄的隔日疲勞感。</p>
+        <div class="grid">
+          <div class="card wide" data-chart="hrv"></div>
+          <div class="card" data-chart="rhr"></div>
+          <div class="card" data-chart="sleep"></div>
+          <div class="card" data-chart="sleep_score"></div>
+          <div class="card" data-chart="bb"></div>
+          <div class="card" data-chart="tr"></div>
+          <div class="card" data-chart="resp"></div>
+          <div class="card wide" id="fatigue-card"></div>
+        </div>
+      </section>
 
-    <h2>課程紀錄</h2>
-    <div class="filters inline" id="cat-filter" role="group" aria-label="課表類型"></div>
-    <div class="card wide table-card"><div id="session-table" class="table-wrap"></div></div>
+      <section class="block" id="sec-log">
+        <h2>課程紀錄</h2>
+        <div class="filters inline" id="cat-filter" role="group" aria-label="課表類型"></div>
+        <div class="card wide table-card"><div id="session-table" class="table-wrap tall"></div></div>
+      </section>
+    </section>
 
-    <h2>方法說明</h2>
-    <div class="card wide notes">
-      <ul>
-        <li>資料來源：Garmin Forerunner 570 原始 FIT 檔與 Garmin Connect 每日恢復資料；課表類型、RPE、隔日疲勞感取自個人訓練日誌。2026-01-19 之前沒有日誌的課程，類型由 Garmin 資料自動推測（標示「推測」）。</li>
-        <li>一堂課＝同一天所有跑步活動。主訓練段與恢復段為演算法自動分段；與課表趟數不符者，各趟指標不列入趨勢圖。</li>
-        <li>步幅、觸地時間、垂直振幅為手腕加速規估計值，跑步機上的速度亦為手腕估計；跑步機課以設定速度為準。</li>
-        <li>心率、HRV、Body Battery、訓練準備度等皆為 Garmin 的估計值，只適合個人前後比較，不宜與一般族群標準比較。</li>
-        <li>所有圖表為描述性呈現；負荷與恢復指標並列不代表因果關係。</li>
-      </ul>
-    </div>
-    <footer class="muted" id="footer"></footer>
+    <!-- ===================== 數據解讀 ===================== -->
+    <section id="tab-assessment" class="tab" hidden>
+      <p class="lead" id="as-lead"></p>
+      <section class="block">
+        <h2>各面向狀態</h2>
+        <p class="block-desc">近期數值與你自己的基準比較；變化超過「最小有意義變化（SWC）」才判定為改善或變差。判定規則見「方法與資料」。</p>
+        <div class="status-grid" id="domain-cards"></div>
+      </section>
+      <section class="block">
+        <h2>半馬能力</h2>
+        <div class="grid">
+          <div class="card" id="hm-milestones"></div>
+          <div class="card" id="hm-estimates"></div>
+        </div>
+      </section>
+      <section class="block">
+        <h2>速度與持續時間</h2>
+        <p class="block-desc">每月戶外訓練中各持續時間的最佳平均速度（非全力測試）。臨界速度以近 3 個月 3–20 分鐘的最佳片段估計。</p>
+        <div class="grid"><div class="card wide" data-chart="sdc"></div></div>
+      </section>
+      <section class="block">
+        <h2>每週評估</h2>
+        <div class="card wide table-card"><div id="week-table" class="table-wrap tall"></div></div>
+      </section>
+      <section class="block">
+        <h2>每月摘要</h2>
+        <div class="card wide table-card"><div id="month-table" class="table-wrap"></div></div>
+      </section>
+      <section class="block">
+        <h2>課後評估（最近 20 堂）</h2>
+        <div class="card wide table-card"><div id="session-assess-table" class="table-wrap tall"></div></div>
+      </section>
+    </section>
+
+    <!-- ===================== 教練建議 ===================== -->
+    <section id="tab-coach" class="tab" hidden>
+      <div id="coach-root"></div>
+    </section>
+
+    <!-- ===================== 方法與資料 ===================== -->
+    <section id="tab-methods" class="tab" hidden>
+      <section class="block">
+        <h2>資料來源</h2>
+        <div class="card wide notes"><ul>
+          <li>Garmin Forerunner 570 原始 FIT 檔（每秒紀錄）與 Garmin Connect 每日恢復資料（睡眠、HRV、安靜心率、壓力、Body Battery、訓練準備度、訓練狀態、呼吸、血氧）。</li>
+          <li>個人訓練日誌：課表類型、課表內容、RPE、隔日疲勞感、事件（受傷、換鞋、比賽）。2026-01-19 之前沒有日誌的課程，類型由 Garmin 資料自動推測，標示「推測」。</li>
+          <li>個人化參數：以個人 LTHR 測試所訂的心率區間（LTHR 148 bpm）。年齡、體重、用藥等個人資料僅存於本機，不在此網站。</li>
+        </ul></div>
+      </section>
+      <section class="block">
+        <h2>分析方法</h2>
+        <div class="card wide notes"><ul>
+          <li><b>一堂課</b>＝同一天所有跑步活動。主訓練段、恢復段由演算法依速度與步頻自動分段；跑步機間歇以課表時間結構輔助。分段與課表趟數不符者，各趟指標不列入趨勢。</li>
+          <li><b>狀態判定</b>：近 28 天（或最近 3 次）與前 84 天（或更早紀錄）的個人基準比較；最小有意義變化 SWC＝max(0.5 × 基準期標準差, 指標下限)。近期資料少於 2 筆或基準少於 3 筆時為「資料不足」；最近一筆超過 8 週為「資料過舊」。此為個人監測的分析慣例，並非經驗證的臨床門檻。</li>
+          <li><b>強度</b>：以個人心率區間分為低（&lt; 133）、中（133–144）、高（≥ 145 bpm），並與 RPE 對照。心率與 RPE 不一致時，以 RPE 與配速為主要依據。</li>
+          <li><b>sRPE</b>＝RPE × 訓練分鐘；每週單調度＝每日 sRPE 平均 ÷ 標準差，壓力值＝週 sRPE × 單調度（僅在該週每堂課都有 RPE 時計算）。</li>
+          <li><b>效率因子</b>＝速度（m/min）÷ 心率；<b>心率漂移</b>＝主段前後半效率因子的差異百分比。</li>
+          <li><b>臨界速度</b>：距離–時間線性模型 d = CS·t + D′，使用訓練中的最佳片段，數值偏保守。</li>
+          <li><b>半馬推估</b>：Riegel 公式（指數 1.06）與 Garmin 預測並列，兩者都有明顯限制，僅供參考。</li>
+        </ul></div>
+      </section>
+      <section class="block">
+        <h2>限制與注意事項</h2>
+        <div class="card wide notes"><ul>
+          <li>步幅、觸地時間、垂直振幅、跑步機速度皆為手腕加速規估計值。</li>
+          <li>心率、HRV、Body Battery、訓練準備度、VO2max 為 Garmin 估計值；心率反應受個人用藥影響，只適合個人前後比較，不宜套用一般族群標準或以年齡推估的最大心率。</li>
+          <li>未做天氣校正：夏季（6–9 月）戶外心率可能偏高、效率偏低。</li>
+          <li>ACWR 等負荷比值的方法學仍有爭議，僅作參考。</li>
+          <li>所有圖表與評估皆為描述性；負荷與恢復指標並列不代表因果關係。教練建議不構成醫療建議。</li>
+        </ul></div>
+      </section>
+      <section class="block">
+        <h2>參考文獻</h2>
+        <div class="card wide notes refs"><ol>
+          <li>Foster C, et al. (2001). A new approach to monitoring exercise training. <i>Journal of Strength and Conditioning Research</i>, 15(1), 109–115. doi:10.1519/1533-4287(2001)015&lt;0109:ANATME&gt;2.0.CO;2</li>
+          <li>Foster C. (1998). Monitoring training in athletes with reference to overtraining syndrome. <i>Medicine &amp; Science in Sports &amp; Exercise</i>, 30(7), 1164–1168. doi:10.1097/00005768-199807000-00023</li>
+          <li>Hopkins WG. (2000). Measures of reliability in sports medicine and science. <i>Sports Medicine</i>, 30(1), 1–15. doi:10.2165/00007256-200030010-00001</li>
+          <li>Impellizzeri FM, et al. (2020). Acute:chronic workload ratio: conceptual issues and fundamental pitfalls. <i>International Journal of Sports Physiology and Performance</i>, 15(6), 907–913. doi:10.1123/ijspp.2019-0864</li>
+          <li>Jones AM, Vanhatalo A. (2017). The ‘critical power’ concept: applications to sports performance with a focus on intermittent high-intensity exercise. <i>Sports Medicine</i>, 47(Suppl 1), 65–78. doi:10.1007/s40279-017-0688-0</li>
+          <li>Plews DJ, et al. (2013). Training adaptation and heart rate variability in elite endurance athletes: opening the door to effective monitoring. <i>Sports Medicine</i>, 43(9), 773–781. doi:10.1007/s40279-013-0071-8</li>
+          <li>Riegel PS. (1981). Athletic records and human endurance. <i>American Scientist</i>, 69(3), 285–290.</li>
+          <li>Seiler S. (2010). What is best practice for training intensity and duration distribution in endurance athletes? <i>International Journal of Sports Physiology and Performance</i>, 5(3), 276–291. doi:10.1123/ijspp.5.3.276</li>
+        </ol></div>
+      </section>
+      <footer class="muted" id="footer"></footer>
+    </section>
   </div>
 </main>
 <script src="app.js"></script>
