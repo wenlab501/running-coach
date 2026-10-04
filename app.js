@@ -152,12 +152,31 @@ const SPECS = {
   },
   tm_hr: () => {
     const speeds = [7.5, 8.0, 8.5];
-    const ss = S().filter((s) => s.cat === "steady_treadmill" && s.src === "notion" && speeds.includes(s.set_speed) && s.hr);
+    const ss = S().filter((s) => s.cat === "steady_treadmill" && s.src === "notion" && speeds.includes(s.set_speed) && s.hr)
+      .sort((a, b) => (a.date < b.date ? -1 : 1));
+    // x = set speed; within one speed the points are spread left→right in date order (±0.15 km/h) so they do not overlap.
+    // colour = date order on the light→dark ramp; area ∝ main-block minutes (same rule as the threshold chart)
+    const ramp = ["--q1", "--q2", "--q3", "--q4"].map(css);
+    const colorAt = (i) => rampColor(ramp, ss.length > 1 ? i / (ss.length - 1) : 1);
+    const mins = ss.map((s) => s.main_min || 0), mMin = Math.min(...mins), mMax = Math.max(...mins);
+    const size = (m) => 30 * Math.sqrt(Math.max(m || 0, 1) / Math.max(mMax, 1));
+    const md = (d) => `${+d.slice(5, 7)}/${+d.slice(8, 10)}`;
+    const xOf = (s) => { const g = ss.filter((x) => x.set_speed === s.set_speed); const k = g.indexOf(s);
+      return s.set_speed + (g.length > 1 ? (k / (g.length - 1) - 0.5) * 0.3 : 0); };
+    const pts = ss.map((s, i) => ({ value: [+xOf(s).toFixed(3), s.hr], raw: s, symbolSize: size(s.main_min),
+      itemStyle: { color: colorAt(i), opacity: 0.9, borderColor: css("--surface-1"), borderWidth: 1.5 } }));
     return {
-      title: "跑步機固定速度的平均心率（bpm）", sub: "主段平均心率；速度相同才可比較",
-      legend: speeds.map((v, i) => [`${v} km/h`, css(`--s${i + 1}`)]),
-      option: base({ tooltip: { ...base().tooltip, trigger: "item", formatter: itemTip((r) => [r.date, `設定 ${r.set_speed} km/h · 主段 ${fmt(r.main_min)} 分`, `平均心率 ${fmt(r.hr)} bpm`]) },
-        series: speeds.map((v, i) => dots(`${v} km/h`, ss.filter((s) => s.set_speed === v).map((s) => ({ value: [toT(s.date), s.hr], raw: s })), css(`--s${i + 1}`))) }),
+      title: "跑步機固定速度的平均心率（bpm）",
+      sub: ss.length ? `主段平均心率；同一速度內由左到右、顏色由淺到深＝由早到晚；點的面積與主段時間成正比（${fmt(mMin)}–${fmt(mMax)} 分），時間長短不同會影響平均心率` : "",
+      legend: ss.length ? [[`最早 ${ss[0].date}`, colorAt(0)], [`最近 ${ss.at(-1).date}`, colorAt(ss.length - 1)]] : [],
+      option: base({ grid: { left: 46, right: 18, top: 18, bottom: 40 },
+        xAxis: { ...valueX("設定速度（km/h）"), scale: false, min: 7.25, max: 8.75, interval: 0.25,
+          axisLabel: { color: css("--text-muted"), fontSize: 11, showMinLabel: false, showMaxLabel: false,
+            formatter: (v) => (speeds.some((x) => Math.abs(x - v) < 1e-6) ? v.toFixed(1) : "") } },
+        tooltip: { ...base().tooltip, trigger: "item", formatter: itemTip((r) => [r.date, `設定 ${r.set_speed} km/h · 主段 ${fmt(r.main_min)} 分`, `平均心率 ${fmt(r.hr)} bpm`]) },
+        series: [{ type: "scatter", name: "固定速度", z: 2, labelLayout: { hideOverlap: true },
+            label: { show: true, position: "top", distance: 4, color: css("--text-secondary"), fontSize: 10, formatter: (p) => md(p.data.raw.date) },
+            data: pts }] }),
       table: { cols: ["日期", "設定速度", "主段分鐘", "平均心率"], rows: ss.map((s) => [s.date, s.set_speed, s.main_min, s.hr]) },
     };
   },
