@@ -551,7 +551,9 @@ function renderCoach() {
     return `<section class="block"><h2>${k}</h2>` + items.slice(0, k === "課後回饋" ? 10 : 4).map((e) =>
       `<article class="card wide coach-entry"><p class="card-title">${esc(e.title)}</p>
        <p class="card-sub">${esc(e.date)}${e.direction ? ` · 建議方向：${esc(e.direction)}` : ""}${e.confidence ? ` · 信心：${esc(e.confidence)}` : ""}</p>
-       <p>${esc(e.summary || "")}</p>${e.body_html || ""}${e.evidence ? `<p class="evidence">依據：${esc(e.evidence)}</p>` : ""}</article>`).join("") + "</section>";
+       <p class="coach-summary">${esc(e.summary || "")}</p>
+       <details><summary>完整內容</summary>${e.body_html || ""}${e.evidence ? `<p class="evidence">資料依據：${esc(e.evidence)}</p>` : ""}</details>
+       ${e.notion_url ? `<p class="evidence"><a href="${esc(e.notion_url)}" target="_blank" rel="noopener">在 Notion 開啟（可在那裡填寫「我的回應」）</a></p>` : ""}</article>`).join("") + "</section>";
   }).join("") + `<p class="muted">教練建議不構成醫療建議。最後更新：${esc(c.generated_at || "")}</p>`;
 }
 

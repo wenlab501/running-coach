@@ -107,6 +107,15 @@ button.ghost { font-size: 12px; padding: 4px 10px; color: var(--text-secondary);
 .check { list-style: none; padding: 0; margin: 6px 0 0; font-size: 13px; }
 .check li { padding: 4px 0; border-bottom: 1px solid var(--grid); }
 .coach-empty { margin-top: 24px; }
+.coach-entry { margin-bottom: 12px; }
+.coach-entry .coach-summary { font-size: 15px; margin: 6px 0 8px; }
+.coach-entry details summary { cursor: pointer; font-size: 13px; color: var(--accent); margin-bottom: 6px; }
+.coach-entry h4 { font-size: 14px; margin: 12px 0 4px; }
+.coach-entry ul { margin: 4px 0; padding-left: 20px; font-size: 14px; }
+.coach-entry p { font-size: 14px; }
+.coach-entry table { margin: 6px 0; }
+.coach-entry .evidence { font-size: 12px; color: var(--text-muted); }
+.coach-entry a { color: var(--accent); }
 
 .filters { display: flex; gap: 6px; flex-wrap: wrap; }
 .filters.inline { margin: 0 0 10px; align-items: center; }
