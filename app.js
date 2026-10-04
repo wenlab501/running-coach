@@ -731,7 +731,7 @@ function init(data) {
     state.cat = b.dataset.cat; renderFilters(); renderSessionTable();
   });
   window.addEventListener("hashchange", routeFromHash);
-  // icon/title → home (儀表板, clean URL) without reloading, so the password is not asked again
+  // icon/title → home (訓練紀錄 tab, clean URL) without reloading, so the password is not asked again
   document.querySelector(".site-head a.home").addEventListener("click", (e) => {
     e.preventDefault();
     history.pushState(null, "", location.pathname);
