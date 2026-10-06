@@ -122,7 +122,9 @@ details.fold[open] > summary { margin-bottom: 8px; }
 .head-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 .mode-badge { font-size: 12px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-secondary); white-space: nowrap; }
 .mode-badge.owner { color: var(--accent); border-color: currentColor; }
-.coach-entry .part-h { font-size: 14px; margin: 14px 0 4px; padding-top: 8px; border-top: 1px solid var(--border); }
+/* coach entry heading levels: part (回顧/計畫) > section (觀察/解讀/行動/更新) > sub-section (優勢/限制…) */
+.coach-entry .part-h { font-size: 16px; font-weight: 700; color: var(--text-primary); margin: 20px 0 8px; padding: 6px 10px; background: var(--band); border-left: 4px solid var(--accent); border-radius: 4px; }
+.coach-entry details > .part-h:first-of-type { margin-top: 8px; }
 .row-toggle { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font: inherit; white-space: nowrap; }
 .row-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 tr.detail-row > td { background: var(--band); white-space: normal; padding: 10px 12px 12px; }
@@ -156,7 +158,8 @@ ol.changes .muted { font-size: 12px; }
 .coach-entry { margin-bottom: 12px; }
 .coach-entry .coach-summary { font-size: 15px; margin: 6px 0 8px; }
 .coach-entry details summary { cursor: pointer; font-size: 13px; color: var(--accent); margin-bottom: 6px; }
-.coach-entry h4 { font-size: 14px; margin: 12px 0 4px; }
+.coach-entry h4 { font-size: 15px; font-weight: 700; color: var(--text-primary); margin: 14px 0 4px; }
+.coach-entry h5 { font-size: 13px; font-weight: 700; color: var(--text-secondary); margin: 10px 0 2px; }
 .coach-entry ul { margin: 4px 0; padding-left: 20px; font-size: 14px; }
 .coach-entry p { font-size: 14px; }
 .coach-entry table { margin: 6px 0; }
