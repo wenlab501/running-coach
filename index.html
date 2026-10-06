@@ -9,7 +9,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#2a78d6">
-<link rel="stylesheet" href="style.css?v=20261006a">
+<link rel="stylesheet" href="style.css?v=20261006b">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.6.0/echarts.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
@@ -160,6 +160,7 @@
 
       <section class="block" id="sec-log">
         <h2>課程紀錄</h2>
+        <p class="block-desc">點日期展開該堂的評估（完成度、強度分布、心率與 RPE、重點指標與個人基準比較、課前狀態、隔天反應）與 AI 課後回饋。</p>
         <div class="filters inline" id="cat-filter" role="group" aria-label="課表類型"></div>
         <div class="card wide table-card"><div id="session-table" class="table-wrap tall"></div></div>
       </section>
@@ -225,11 +226,6 @@
           <div class="card wide table-card"><div id="week-table" class="table-wrap tall"></div></div>
           <h3 class="fold-h">每月摘要</h3>
           <div class="card wide table-card"><div id="month-table" class="table-wrap"></div></div>
-        </details>
-      </section>
-      <section class="block">
-        <details class="fold"><summary>課後評估（最近 20 堂）</summary>
-          <div class="card wide table-card"><div id="session-assess-table" class="table-wrap tall"></div></div>
         </details>
       </section>
     </section>
@@ -300,6 +296,6 @@
     </section>
   </div>
 </main>
-<script src="app.js?v=20261006a"></script>
+<script src="app.js?v=20261006b"></script>
 </body>
 </html>

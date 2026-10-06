@@ -558,9 +558,36 @@ function renderSessionTable() {
   const ss = S().filter((s) => state.cat === "all" || s.cat === state.cat).reverse();
   const cols = ["日期", "類型", "來源", "課表", "距離 km", "跑步分", "Garmin 負荷", "RPE", "重點指標", "事件"];
   document.getElementById("session-table").innerHTML = `<table><thead><tr>${cols.map((c, i) => `<th class="${[4, 5, 6, 7].includes(i) ? "num" : ""}">${c}</th>`).join("")}</tr></thead><tbody>` +
-    ss.map((s) => `<tr><td>${s.date}</td><td>${catLabel(s.cat)}</td><td><span class="tag">${s.src === "notion" ? "日誌" : "推測"}</span></td>` +
+    ss.map((s) => `<tr><td><button type="button" class="row-toggle" data-date="${s.date}" aria-expanded="false">▸ ${s.date}</button></td><td>${catLabel(s.cat)}</td><td><span class="tag">${s.src === "notion" ? "日誌" : "推測"}</span></td>` +
       `<td>${esc(s.plan ?? "—")}</td><td class="num">${fmt(s.dist_km, 1)}</td><td class="num">${fmt(s.run_min)}</td><td class="num">${fmt(s.load)}</td>` +
-      `<td class="num">${fmt(s.rpe)}</td><td>${keyMetric(s)}</td><td>${esc(s.event ?? "")}</td></tr>`).join("") + "</tbody></table>";
+      `<td class="num">${fmt(s.rpe)}</td><td>${keyMetric(s)}</td><td>${esc(s.event ?? "")}</td></tr>` +
+      `<tr class="detail-row" hidden><td colspan="${cols.length}"></td></tr>`).join("") + "</tbody></table>";
+}
+
+// per-session assessment + AI feedback, rendered on demand under the clicked row
+function sessionDetail(date) {
+  const a = (state.data.assessment?.sessions || []).find((x) => x.date === date);
+  const fb = (state.data.coach?.entries || []).find((e) => e.type === "課後回饋" && e.date === date);
+  if (!a && !fb) return `<p class="muted">這堂課沒有評估資料。</p>`;
+  const item = (k, v) => `<div><dt>${k}</dt><dd>${v}</dd></div>`;
+  const parts = [];
+  if (a) {
+    const k = a.key_metric;
+    const nd = k ? DECIMALS[k.unit] ?? 1 : 1;
+    parts.push(item("完成度", esc(a.adherence ?? "—")));
+    parts.push(item("強度 低／中／高", a.pct_low == null ? "—" : `${a.pct_low}／${a.pct_mod}／${a.pct_high} %`));
+    parts.push(item("RPE 與心率", `${a.rpe ?? "—"}${a.hr_rpe ? `（${esc(a.hr_rpe)}）` : ""}`));
+    parts.push(item("重點指標 vs 個人基準", k ? `${STATUS[k.status]?.[0] ?? ""} ${STATUS[k.status]?.[1] ?? esc(k.status)}：${esc(k.label)} ${fmt(k.current, nd)}${k.baseline != null ? `（基準 ${fmt(k.baseline, nd)}${k.swc != null ? `，SWC ±${fmt(k.swc, nd)}` : ""}）` : ""}` : "—"));
+    const p = a.pre || {};
+    parts.push(item("課前狀態", `準備度 ${p.tr ?? "—"} · HRV ${esc(p.hrv_status ?? "—")} · Body Battery ${p.bb_start ?? "—"}`));
+    const n = a.next_morning;
+    parts.push(item("隔天早上", n ? `HRV − 基準中點 ${n.hrv_vs_baseline_mid ?? "—"} ms · 安靜心率 − 7 天平均 ${n.rhr_vs_7d ?? "—"} bpm · 睡眠分數 ${n.sleep_score ?? "—"}` : "尚無資料"));
+    if ((a.flags || []).length) parts.push(item("提醒", esc(a.flags.join("；"))));
+  }
+  const coach = fb ? `<div class="session-fb"><p class="card-title">AI 課後回饋：${esc(fb.title)}</p><p>${esc(fb.summary || "")}</p>
+    <p class="evidence"><a href="#coach">在「教練建議」看完整內容</a>${fb.notion_url ? ` · <a href="${esc(fb.notion_url)}" target="_blank" rel="noopener">在 Notion 開啟</a>` : ""}</p></div>`
+    : `<p class="muted">這堂課沒有 AI 課後回饋。</p>`;
+  return `<div class="detail-inner"><dl class="session-detail">${parts.join("")}</dl>${coach}</div>`;
 }
 
 function renderFatigue() {
@@ -676,14 +703,6 @@ function renderAssessment() {
     rows: a.months.slice().reverse().map((m) => [m.month, m.n_run, m.km, m.run_min, m.hr_at_8_0 ?? "—", m.hr_at_8_5 ?? "—", m.ef_outdoor ?? "—",
       m.decoupling ?? "—", m.srpe ?? "—", m.hrv ?? "—", m.rhr ?? "—", m.sleep_h ?? "—", m.vo2max ?? "—"]),
   });
-  const ss = a.sessions.slice(-20).reverse();
-  document.getElementById("session-assess-table").innerHTML = `<table><thead><tr>${["日期", "類型", "強度 低／中／高 %", "RPE", "心率與 RPE", "完成度", "重點指標 vs 個人基準", "隔天 HRV − 基準", "提醒"].map((c) => `<th>${c}</th>`).join("")}</tr></thead><tbody>` +
-    ss.map((s) => {
-      const k = s.key_metric;
-      const km = k ? `${STATUS[k.status]?.[1] ?? k.status}：${esc(k.label)} ${fmt(k.current, DECIMALS[k.unit] ?? 1)}${k.baseline != null ? `（基準 ${fmt(k.baseline, DECIMALS[k.unit] ?? 1)}）` : ""}` : "—";
-      return `<tr><td>${s.date}</td><td>${catLabel(s.cat)}</td><td>${s.pct_low ?? "—"}／${s.pct_mod ?? "—"}／${s.pct_high ?? "—"}</td><td class="num">${s.rpe ?? "—"}</td>` +
-        `<td>${s.hr_rpe ?? "—"}</td><td>${s.adherence ?? "—"}</td><td class="wrap">${km}</td><td class="num">${s.next_morning?.hrv_vs_baseline_mid ?? "—"}</td><td class="wrap">${esc((s.flags || []).join("；")) || "—"}</td></tr>`;
-    }).join("") + "</tbody></table>";
 }
 
 /* ================= coach tab ================= */
@@ -750,6 +769,15 @@ function init(data) {
     const b = e.target.closest("button"); if (!b) return;
     state.metric = b.dataset.metric; renderFilters();
     ["dyn_rel", "dyn_trend"].forEach((id) => renderCard(document.querySelector(`[data-chart="${id}"]`)));
+  });
+  document.getElementById("session-table").addEventListener("click", (e) => {
+    const b = e.target.closest("button.row-toggle"); if (!b) return;
+    const row = b.closest("tr").nextElementSibling;
+    const open = row.hidden;
+    if (open && !row.dataset.filled) { row.firstElementChild.innerHTML = sessionDetail(b.dataset.date); row.dataset.filled = "1"; }
+    row.hidden = !open;
+    b.setAttribute("aria-expanded", String(open));
+    b.textContent = `${open ? "▾" : "▸"} ${b.dataset.date}`;
   });
   document.getElementById("cat-filter").addEventListener("click", (e) => {
     const b = e.target.closest("button"); if (!b) return;
