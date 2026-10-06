@@ -746,13 +746,13 @@ function coachUnits(entries) {
     if (rv) used.add(rv.id);
     weeks.push({ kind: "week", sort: start || pl.date, parts: rv ? [rv, pl] : [pl],
       title: `週教練報告｜${rv ? `回顧 ${span(rv.period)}｜` : ""}計畫 ${span(pl.period)}`,
-      sub: "由舊格式「週回顧＋下週建議」合併顯示" });
+      sub: "" });
   }
   for (const rv of reviews.filter((r) => !used.has(r.id)))
-    weeks.push({ kind: "week", sort: rv.period?.[1] || rv.date, parts: [rv], title: `週教練報告｜回顧 ${span(rv.period)}`, sub: "舊格式「週回顧」" });
+    weeks.push({ kind: "week", sort: rv.period?.[1] || rv.date, parts: [rv], title: `週教練報告｜回顧 ${span(rv.period)}`, sub: "" });
   // same date: a 月度策略 ranks above a legacy 月評估
   const months = [...by("月度策略").map((e) => ({ kind: "month", sort: `${e.date}b`, title: e.title, parts: [e], sub: e.phase ? `階段：${e.phase}` : "" })),
-    ...by("月評估").map((e) => ({ kind: "month", sort: `${e.date}a`, title: e.title, parts: [e], sub: "舊格式「月評估」" }))];
+    ...by("月評估").map((e) => ({ kind: "month", sort: `${e.date}a`, title: e.title, parts: [e], sub: "" }))];
   const desc = (a, b) => (a.sort < b.sort ? 1 : -1);
   return { sessions: sessions.sort(desc), weeks: weeks.sort(desc), months: months.sort(desc) };
 }
