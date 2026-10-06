@@ -3,13 +3,30 @@
 /* ================= decryption & gate ================= */
 const b64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 
-async function decrypt(blob, pass) {
+async function deriveKey(blob, pass) {
   const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pass), "PBKDF2", false, ["deriveKey"]);
-  const key = await crypto.subtle.deriveKey(
+  return crypto.subtle.deriveKey(
     { name: "PBKDF2", hash: "SHA-256", salt: b64(blob.salt), iterations: blob.iter },
     base, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
+}
+async function decryptWith(blob, key) {
   const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64(blob.iv) }, key, b64(blob.ct));
   return JSON.parse(new TextDecoder().decode(pt));
+}
+async function fetchBlob(name) {
+  try { const r = await fetch(`data/${name}`, { cache: "no-store" }); return r.ok ? await r.json() : null; } catch { return null; }
+}
+// owner file first, then the viewer file; files sharing a salt need only one PBKDF2 derivation
+async function decryptAny(pass) {
+  const files = [["owner", await fetchBlob("dashboard.enc.json")], ["viewer", await fetchBlob("dashboard.viewer.enc.json")]];
+  const keys = {};
+  for (const [mode, blob] of files) {
+    if (!blob) continue;
+    const id = `${blob.salt}|${blob.iter}`;
+    keys[id] = keys[id] || await deriveKey(blob, pass);
+    try { return { mode, data: await decryptWith(blob, keys[id]) }; } catch { /* wrong key for this file */ }
+  }
+  throw new Error("no match");
 }
 
 const KEY = "rc-pass";
@@ -25,8 +42,9 @@ async function unlock(pass, remember) {
   msg.textContent = "解密中…";
   let data;
   try {
-    const res = await fetch("data/dashboard.enc.json", { cache: "no-store" });
-    data = await decrypt(await res.json(), pass);
+    const r = await decryptAny(pass);
+    data = r.data;
+    state.mode = r.mode;
   } catch {
     msg.textContent = "無法解密：密碼錯誤或資料不存在。";
     local.del();
@@ -36,6 +54,9 @@ async function unlock(pass, remember) {
   if (remember) local.set(pass);
   document.getElementById("gate").hidden = true;
   document.getElementById("app").hidden = false;
+  const mb = document.getElementById("mode-badge");
+  mb.textContent = state.mode === "viewer" ? "瀏覽模式" : "完整模式";
+  mb.className = `mode-badge ${state.mode}`;
   init(data);
 }
 
@@ -55,7 +76,7 @@ if (saved) unlock(saved, false);
 const CAT_ORDER = ["steady_outdoor", "steady_treadmill", "threshold_treadmill", "interval_treadmill", "interval_track", "tempo_outdoor", "race"];
 const CAT_SLOT = Object.fromEntries(CAT_ORDER.map((c, i) => [c, `--s${i + 1}`]));
 const METRICS = { cad: ["步頻", "spm"], step: ["步幅", "mm"], gct: ["觸地時間", "ms"] };
-const state = { data: null, range: 182, band: null, metric: "cad", cat: "all", tab: "dashboard", rendered: {} };
+const state = { mode: null, data: null, range: 182, band: null, metric: "cad", cat: "all", tab: "dashboard", rendered: {} };
 const charts = new Map();
 
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -209,7 +230,7 @@ const SPECS = {
   vo2: () => {
     const d = D().filter((r) => r.vo2max != null);
     return {
-      title: "VO2max 估計值", sub: "Garmin 估計（最近一次更新值）；依心率推算，受用藥影響",
+      title: "VO2max 估計值", sub: "Garmin 估計（最近一次更新值）；依心率推算，個人差異大",
       option: base({ tooltip: { ...base().tooltip, formatter: axisTip("", 1) },
         series: [line("VO2max", d.map((r) => [toT(r.date), r.vo2max]), css("--s1"), { step: "end", showSymbol: false })] }),
       table: { cols: ["日期", "VO2max"], rows: d.map((r) => [r.date, r.vo2max]) },
@@ -706,25 +727,71 @@ function renderAssessment() {
 }
 
 /* ================= coach tab ================= */
+// Session -> Week -> Month. Legacy 週回顧 + 下週建議 of the same week are shown as one 週教練報告;
+// legacy 月評估 is shown under 月度策略.
+const md = (d) => (d ? `${+d.slice(5, 7)}/${+d.slice(8, 10)}` : "");
+const span = (p) => (p && p[0] ? `${md(p[0])}–${md(p[1])}` : "");
+// calendar next day on the date string itself (no time-zone shift)
+const nextDay = (d) => { const [y, m, dd] = d.split("-").map(Number); return new Date(Date.UTC(y, m - 1, dd + 1)).toISOString().slice(0, 10); };
+
+function coachUnits(entries) {
+  const by = (t) => entries.filter((e) => e.type === t);
+  const sessions = by("課後回饋").map((e) => ({ kind: "session", sort: e.date, title: e.title, sub: e.date, parts: [e] }));
+  const weeks = by("週教練報告").map((e) => ({ kind: "week", sort: e.plan_period?.[0] || e.date, title: e.title, parts: [e],
+    sub: [e.review_period ? `回顧 ${span(e.review_period)}` : "", e.plan_period ? `計畫 ${span(e.plan_period)}` : ""].filter(Boolean).join("｜") }));
+  const reviews = by("週回顧"), plans = by("下週建議"), used = new Set();
+  for (const pl of plans) {
+    const start = pl.period?.[0];
+    const rv = reviews.find((r) => r.period?.[1] && start && nextDay(r.period[1]) === start);
+    if (rv) used.add(rv.id);
+    weeks.push({ kind: "week", sort: start || pl.date, parts: rv ? [rv, pl] : [pl],
+      title: `週教練報告｜${rv ? `回顧 ${span(rv.period)}｜` : ""}計畫 ${span(pl.period)}`,
+      sub: "由舊格式「週回顧＋下週建議」合併顯示" });
+  }
+  for (const rv of reviews.filter((r) => !used.has(r.id)))
+    weeks.push({ kind: "week", sort: rv.period?.[1] || rv.date, parts: [rv], title: `週教練報告｜回顧 ${span(rv.period)}`, sub: "舊格式「週回顧」" });
+  // same date: a 月度策略 ranks above a legacy 月評估
+  const months = [...by("月度策略").map((e) => ({ kind: "month", sort: `${e.date}b`, title: e.title, parts: [e], sub: e.phase ? `階段：${e.phase}` : "" })),
+    ...by("月評估").map((e) => ({ kind: "month", sort: `${e.date}a`, title: e.title, parts: [e], sub: "舊格式「月評估」" }))];
+  const desc = (a, b) => (a.sort < b.sort ? 1 : -1);
+  return { sessions: sessions.sort(desc), weeks: weeks.sort(desc), months: months.sort(desc) };
+}
+
+function coachCard(u, open = false) {
+  const meta = u.parts.map((e) => [e.direction ? `建議方向：${esc(e.direction)}` : "", e.confidence ? `信心：${esc(e.confidence)}` : ""])
+    .flat().filter(Boolean);
+  const summary = u.parts.length > 1
+    ? u.parts.map((e) => `<p class="coach-summary"><b>${e.type === "週回顧" ? "回顧" : "計畫"}：</b>${esc(e.summary || "")}</p>`).join("")
+    : `<p class="coach-summary">${esc(u.parts[0].summary || "")}</p>`;
+  const body = u.parts.map((e) => (u.parts.length > 1 ? `<h4 class="part-h">${e.type === "週回顧" ? "回顧" : "計畫與調整"}</h4>` : "") +
+    (e.body_html || "") + (e.evidence ? `<p class="evidence">資料依據：${esc(e.evidence)}</p>` : "")).join("");
+  const links = u.parts.filter((e) => e.notion_url).map((e) =>
+    `<a href="${esc(e.notion_url)}" target="_blank" rel="noopener">在 Notion 開啟${u.parts.length > 1 ? `（${e.type === "週回顧" ? "回顧" : "計畫"}）` : ""}</a>`);
+  return `<article class="card wide coach-entry"><p class="card-title">${esc(u.title)}</p>
+    <p class="card-sub">${[esc(u.sub || ""), ...[...new Set(meta)]].filter(Boolean).join(" · ")}</p>${summary}
+    <details${open ? " open" : ""}><summary>完整內容</summary>${body}</details>
+    ${links.length ? `<p class="evidence">${links.join(" · ")}（可在那裡填寫「我的回應」）</p>` : ""}</article>`;
+}
+
 function renderCoach() {
   const c = state.data.coach;
   const root = document.getElementById("coach-root");
   if (!c || !(c.entries || []).length) {
-    root.innerHTML = `<div class="card wide notes coach-empty"><p class="card-title">教練建議建置中</p>
-      <p class="card-sub">第三階段完成後，這裡會顯示：最新的週回顧、下週建議、課後回饋與歷史紀錄。教練建議依據「目前狀態」的結果撰寫，並同步記錄在 Notion。</p></div>`;
+    root.innerHTML = `<div class="card wide notes coach-empty"><p class="card-title">尚無教練建議</p></div>`;
     return;
   }
-  const kinds = ["週回顧", "下週建議", "月評估", "課後回饋"];
-  root.innerHTML = kinds.map((k) => {
-    const items = c.entries.filter((e) => e.type === k).sort((a, b) => (a.date < b.date ? 1 : -1));
-    if (!items.length) return "";
-    return `<section class="block"><h2>${k}</h2>` + items.slice(0, k === "課後回饋" ? 10 : 4).map((e) =>
-      `<article class="card wide coach-entry"><p class="card-title">${esc(e.title)}</p>
-       <p class="card-sub">${esc(e.date)}${e.direction ? ` · 建議方向：${esc(e.direction)}` : ""}${e.confidence ? ` · 信心：${esc(e.confidence)}` : ""}</p>
-       <p class="coach-summary">${esc(e.summary || "")}</p>
-       <details><summary>完整內容</summary>${e.body_html || ""}${e.evidence ? `<p class="evidence">資料依據：${esc(e.evidence)}</p>` : ""}</details>
-       ${e.notion_url ? `<p class="evidence"><a href="${esc(e.notion_url)}" target="_blank" rel="noopener">在 Notion 開啟（可在那裡填寫「我的回應」）</a></p>` : ""}</article>`).join("") + "</section>";
-  }).join("") + `<p class="muted">教練建議不構成醫療建議。最後更新：${esc(c.generated_at || "")}</p>`;
+  const u = coachUnits(c.entries);
+  const lead = [
+    ["最近一次課後回饋", "這堂課跑得怎麼樣？接下來 24–48 小時怎麼做？", u.sessions[0]],
+    ["本週教練報告", "上週發生什麼？這週怎麼安排、什麼情況要調整？", u.weeks[0]],
+    ["本月策略", "這個月往哪裡走？優先做什麼、不做什麼？", u.months[0]],
+  ];
+  const hist = [["課後回饋", u.sessions.slice(1)], ["週教練報告", u.weeks.slice(1)], ["月度策略", u.months.slice(1)]];
+  root.innerHTML = lead.map(([h, q, x]) => `<section class="block"><h2>${h}</h2><p class="block-desc">${q}</p>` +
+      (x ? coachCard(x) : `<p class="muted">尚無資料。</p>`) + "</section>").join("") +
+    `<section class="block"><details class="fold"><summary>歷史教練紀錄</summary>` +
+    hist.map(([h, xs]) => `<h3 class="fold-h">${h}（${xs.length}）</h3>` + (xs.length ? xs.map((x) => coachCard(x)).join("") : `<p class="muted">無。</p>`)).join("") +
+    `</details></section><p class="muted">教練建議不構成醫療建議。最後更新：${esc(c.generated_at || "")}</p>`;
 }
 
 /* ================= tabs & init ================= */
@@ -751,6 +818,7 @@ function routeFromHash() {
 
 function init(data) {
   state.data = data;
+  state.rendered = {};   // a new login (owner/viewer) must redraw every tab
   const m = data.meta;
   document.getElementById("meta").textContent = `資料期間 ${m.first_date} – ${m.last_date} · ${m.n_sessions} 堂課`;
   document.getElementById("footer").textContent = `資料產生時間（UTC）：${m.generated_at}`;

@@ -9,7 +9,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#2a78d6">
-<link rel="stylesheet" href="style.css?v=20261006b">
+<link rel="stylesheet" href="style.css?v=20261006c">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.6.0/echarts.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
@@ -70,7 +70,8 @@
           <h1 class="brand"><a class="home" href="./" title="回到首頁（訓練紀錄）"><img src="icon.svg" alt="" width="30" height="30">我的個人化 AI 跑步教練</a></h1>
           <p class="muted" id="meta"></p>
         </div>
-        <button type="button" id="logout" class="ghost">登出此裝置</button>
+        <div class="head-actions"><span id="mode-badge" class="mode-badge"></span>
+        <button type="button" id="logout" class="ghost">登出此裝置</button></div>
       </div>
       <nav class="tabs" role="tablist" aria-label="頁面">
         <a role="tab" href="#dashboard" data-tab="dashboard">訓練紀錄</a>
@@ -242,7 +243,7 @@
         <div class="card wide notes"><ul>
           <li>Garmin Forerunner 570 原始 FIT 檔（每秒紀錄）與 Garmin Connect 每日恢復資料（睡眠、HRV、安靜心率、壓力、Body Battery、訓練準備度、訓練狀態、呼吸、血氧）。</li>
           <li>個人訓練日誌：課表類型、課表內容、RPE、隔日疲勞感、事件（受傷、換鞋、比賽）。2026-01-19 之前沒有日誌的課程，類型由 Garmin 資料自動推測，標示「推測」。</li>
-          <li>個人化參數：以個人 LTHR 測試所訂的心率區間（LTHR 148 bpm）。年齡、體重、用藥等個人資料僅存於本機，不在此網站。</li>
+          <li>個人化參數：以個人 LTHR 測試所訂的心率區間（LTHR 148 bpm）。其他個人基本資料僅存於本機，不在此網站。</li>
         </ul></div>
       </section>
       <section class="block">
@@ -267,7 +268,7 @@
         <h2>限制與注意事項</h2>
         <div class="card wide notes"><ul>
           <li>步幅、觸地時間、垂直振幅、跑步機速度皆為手腕加速規估計值。</li>
-          <li>心率、HRV、Body Battery、訓練準備度、VO2max 為 Garmin 估計值；心率反應受個人用藥影響，只適合個人前後比較，不宜套用一般族群標準或以年齡推估的最大心率。</li>
+          <li>心率、HRV、Body Battery、訓練準備度、VO2max 為 Garmin 估計值；心率反應有明顯個人差異，只適合個人前後比較，不宜套用一般族群標準或以年齡推估的最大心率。</li>
           <li>未做天氣校正：夏季（6–9 月）戶外心率可能偏高、效率偏低。</li>
           <li>ACWR 等負荷比值的方法學仍有爭議，僅作參考。</li>
           <li>所有圖表與評估皆為描述性；負荷與恢復指標並列不代表因果關係。教練建議不構成醫療建議。</li>
@@ -296,6 +297,6 @@
     </section>
   </div>
 </main>
-<script src="app.js?v=20261006b"></script>
+<script src="app.js?v=20261006c"></script>
 </body>
 </html>
