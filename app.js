@@ -781,13 +781,9 @@ function renderCoach() {
     return;
   }
   const u = coachUnits(c.entries);
-  const lead = [
-    ["最近一次課後回饋", "這堂課跑得怎麼樣？接下來 24–48 小時怎麼做？", u.sessions[0]],
-    ["本週教練報告", "上週發生什麼？這週怎麼安排、什麼情況要調整？", u.weeks[0]],
-    ["本月策略", "這個月往哪裡走？優先做什麼、不做什麼？", u.months[0]],
-  ];
+  const lead = [["最近一次課後回饋", u.sessions[0]], ["本週教練報告", u.weeks[0]], ["本月策略", u.months[0]]];
   const hist = [["課後回饋", u.sessions.slice(1)], ["週教練報告", u.weeks.slice(1)], ["月度策略", u.months.slice(1)]];
-  root.innerHTML = lead.map(([h, q, x]) => `<section class="block"><h2>${h}</h2><p class="block-desc">${q}</p>` +
+  root.innerHTML = lead.map(([h, x]) => `<section class="block"><h2>${h}</h2>` +
       (x ? coachCard(x) : `<p class="muted">尚無資料。</p>`) + "</section>").join("") +
     `<section class="block"><details class="fold"><summary>歷史教練紀錄</summary>` +
     hist.map(([h, xs]) => `<h3 class="fold-h">${h}（${xs.length}）</h3>` + (xs.length ? xs.map((x) => coachCard(x)).join("") : `<p class="muted">無。</p>`)).join("") +
