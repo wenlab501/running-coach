@@ -770,7 +770,7 @@ function coachCard(u, open = false) {
   return `<article class="card wide coach-entry"><p class="card-title">${esc(u.title)}</p>
     <p class="card-sub">${[esc(u.sub || ""), ...[...new Set(meta)]].filter(Boolean).join(" · ")}</p>${summary}
     <details${open ? " open" : ""}><summary>完整內容</summary>${body}</details>
-    ${links.length ? `<p class="evidence">${links.join(" · ")}（可在那裡填寫「我的回應」）</p>` : ""}</article>`;
+    ${links.length ? `<p class="evidence">${links.join(" · ")}（填寫「我的回應」）</p>` : ""}</article>`;
 }
 
 function renderCoach() {
