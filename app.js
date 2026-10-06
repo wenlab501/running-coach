@@ -429,6 +429,7 @@ function renderBests() {
     tableHTML({ cols: ["依據", "日期", "距離", "時間", "VDOT", "E 速度 km/h", "T 速度 km/h", "半馬等效"],
       rows: vd.rows.map((r) => [r.source, r.date, r.label, mmss(r.time_s), fmt(r.vdot, 1), kmh(r.E_kmh), kmh(r.T_kmh), hms(r.hm_equiv_s)]) }) +
     `<p class="evidence">${esc(vd.method)}。${esc(vd.caveat)}。3/28 比賽：手錶顯示起跑前約 5.5 分鐘幾乎原地不動，實際跑動約 35.4 分鐘，與大會晶片時間 35:26 相符；但這段時間手錶 GPS 量到約 5.56 km，比 5 km 多約 11%，因此 GPS 片段推算的 VDOT 可能偏高。跑步機（0% 坡度）的能量成本低於戶外（Jones &amp; Doust 1996），也會讓跑步機速度高於戶外推算值。</p>` : "";
+  if (state.data.assessment) renderHM(state.data.assessment);
   document.querySelectorAll("#tab-bests [data-chart]").forEach(renderCard);
 }
 
@@ -607,27 +608,8 @@ function renderDashboard() {
   renderSessionTable();
 }
 
-/* ================= assessment tab ================= */
-const STATUS = {
-  improved: ["▲", "改善"], stable: ["＝", "持平"], declined: ["▼", "變差"], watch: ["!", "留意"],
-  stale: ["⏸", "資料過舊"], insufficient: ["？", "資料不足"],
-};
-const DECIMALS = { "bpm": 1, "m/min/bpm": 3, "%": 1, "ms": 1, "小時": 2, "spm": 0, "mm": 0 };
-
-function renderAssessment() {
-  const a = state.data.assessment;
-  if (!a) { document.getElementById("as-lead").textContent = "尚無評估資料。"; return; }
-  document.getElementById("as-lead").textContent = `評估基準日：${a.asof}。近期＝最近 28 天（或最近 3 次同類課），基準＝前 84 天（或更早紀錄）。`;
-  document.getElementById("domain-cards").innerHTML = a.domains.map((d) => {
-    const [icon, label] = STATUS[d.status] || ["", d.status];
-    const nd = DECIMALS[d.unit] ?? 1;
-    const nums = d.current == null ? "" : `近期 <b>${fmt(d.current, nd)}</b> ${esc(d.unit)}` +
-      (d.baseline != null ? ` · 基準 ${fmt(d.baseline, nd)}` : "") + (d.swc != null ? ` · SWC ±${fmt(d.swc, nd)}` : "");
-    return `<article class="status-card"><span class="badge ${d.status}">${icon} ${label}</span><h3>${esc(d.label)}</h3>
-      <p class="metric">${esc(d.metric)}</p><p class="nums">${nums}</p><p class="evidence">${esc(d.evidence || "")}</p>
-      ${d.caveat ? `<p class="caveat">${esc(d.caveat)}</p>` : ""}</article>`;
-  }).join("");
-
+/* half-marathon capability block (能力成績 tab) */
+function renderHM(a) {
   const hm = a.hm || {};
   document.getElementById("hm-milestones").innerHTML = `<p class="card-title">半馬能力里程碑</p><p class="card-sub">${esc(hm.milestone_source || "")}</p>
     <ul class="check">${(hm.milestones || []).map((m) => `<li>${m.achieved ? "✅" : "⬜"} ${esc(m.milestone)}${m.date ? `（首次：${m.date}）` : ""}</li>`).join("")}</ul>`;
@@ -638,6 +620,49 @@ function renderAssessment() {
   if (cs) est.push([`臨界速度（${cs.months.join("、")}）`, `${fmt(cs.cs_kmh, 2)} km/h（${pace(cs.cs_kmh)}）`, cs.caveat]);
   document.getElementById("hm-estimates").innerHTML = `<p class="card-title">半馬完成時間推估</p><p class="card-sub">不同方法差距大，代表不確定性高；僅供參考</p>` +
     tableHTML({ cols: ["方法", "數值", "限制"], rows: est }, [2]);
+}
+
+/* ================= assessment tab ================= */
+const STATUS = {
+  improved: ["▲", "改善"], stable: ["＝", "穩定"], declined: ["▼", "下降"], watch: ["!", "留意"],
+  stale: ["⏸", "資料過舊"], insufficient: ["？", "資料不足"], mixed: ["↕", "有升有降"],
+};
+// one detailed domain card (the evidence layer)
+function domainCard(d) {
+  const [icon, label] = STATUS[d.status] || ["", d.status];
+  const nd = DECIMALS[d.unit] ?? 1;
+  const nums = d.current == null ? "" : `近期 <b>${fmt(d.current, nd)}</b> ${esc(d.unit)}` +
+    (d.baseline != null ? ` · 基準 ${fmt(d.baseline, nd)}` : "") + (d.swc != null ? ` · SWC ±${fmt(d.swc, nd)}` : "");
+  return `<article class="status-card"><span class="badge ${d.status}">${icon} ${label}</span><h3>${esc(d.label)}</h3>
+    <p class="metric">${esc(d.metric)}</p><p class="nums">${nums}</p><p class="evidence">${esc(d.evidence || "")}</p>
+    ${d.caveat ? `<p class="caveat">${esc(d.caveat)}</p>` : ""}</article>`;
+}
+const DECIMALS = { "bpm": 1, "m/min/bpm": 3, "%": 1, "ms": 1, "小時": 2, "spm": 0, "mm": 0 };
+
+function renderAssessment() {
+  const a = state.data.assessment;
+  if (!a) { document.getElementById("as-overall").textContent = "尚無評估資料。"; return; }
+  const ss0 = a.status_summary;
+  const byKey = Object.fromEntries(a.domains.map((d) => [d.key, d]));
+  // summary layer: one deterministic sentence + link to the latest weekly review
+  const wk0 = (state.data.coach?.entries || []).filter((e) => e.type === "週回顧").sort((x, y) => (x.date < y.date ? 1 : -1))[0];
+  document.getElementById("as-overall").innerHTML = ss0 ? `<p class="overall">${ss0.overall.split("；").map(esc).join("<br>")}</p>
+    <p class="muted">評估基準日 ${a.asof}；近期＝最近 28 天（或最近 3 次同類課），基準＝前 84 天（或更早紀錄）。</p>` +
+    (wk0 ? `<p class="muted">背景與建議：<a href="#coach">最新週回顧（${esc(wk0.date)}）${wk0.direction ? ` · 建議方向：${esc(wk0.direction)}` : ""}</a></p>` : "") : "";
+  document.getElementById("group-cards").innerHTML = (ss0?.groups || []).map((g) => {
+    const [icon, label] = STATUS[g.status] || ["", g.status];
+    const members = g.members.map((k) => byKey[k]).filter(Boolean);
+    return `<article class="group-card"><span class="badge ${g.status}">${icon} ${g.partial ? "部分" : ""}${label}</span>
+      <h3>${esc(g.label)}</h3><p class="gsum">${esc(g.summary)}</p>
+      <details><summary>查看依據（${members.length} 項指標）</summary><div class="status-grid">${members.map(domainCard).join("")}</div></details></article>`;
+  }).join("");
+  const tc = ss0?.top_changes || [];
+  document.getElementById("top-changes").innerHTML = tc.length ? `<ol class="changes">${tc.map((c) => {
+    const nd = DECIMALS[c.unit] ?? 1;
+    return `<li><b>${esc(c.label)}</b> ${STATUS[c.status][0]} ${STATUS[c.status][1]}：${fmt(c.current, nd)} ${esc(c.unit || "")}（基準 ${fmt(c.baseline, nd)}）
+      <span class="muted">· ${esc(c.window)} · 變化約 ${fmt(c.ratio, 1)} 倍 SWC</span></li>`; }).join("")}</ol>
+    <p class="evidence">${esc(ss0.rules.top_changes)}</p>` : `<p class="muted">近 28 天沒有符合條件（改善或下降、近期樣本 ≥ 3）的變化。</p>`;
+
 
   const wk = a.weeks.slice(-16).reverse();
   document.getElementById("week-table").innerHTML = tableHTML({
@@ -667,7 +692,7 @@ function renderCoach() {
   const root = document.getElementById("coach-root");
   if (!c || !(c.entries || []).length) {
     root.innerHTML = `<div class="card wide notes coach-empty"><p class="card-title">教練建議建置中</p>
-      <p class="card-sub">第三階段完成後，這裡會顯示：最新的週回顧、下週建議、課後回饋與歷史紀錄。教練建議依據「數據解讀」的結果撰寫，並同步記錄在 Notion。</p></div>`;
+      <p class="card-sub">第三階段完成後，這裡會顯示：最新的週回顧、下週建議、課後回饋與歷史紀錄。教練建議依據「目前狀態」的結果撰寫，並同步記錄在 Notion。</p></div>`;
     return;
   }
   const kinds = ["週回顧", "下週建議", "月評估", "課後回饋"];

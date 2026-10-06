@@ -9,7 +9,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#2a78d6">
-<link rel="stylesheet" href="style.css?v=20261004t">
+<link rel="stylesheet" href="style.css?v=20261006a">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.6.0/echarts.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
@@ -59,7 +59,7 @@
       </ul>
 
       <h2>網站內容</h2>
-      <p>訓練紀錄、最佳成績、數據解讀、教練建議、方法與資料</p>
+      <p>訓練紀錄、能力成績、目前狀態、教練建議、方法與資料</p>
     </div>
   </section>
 
@@ -74,8 +74,8 @@
       </div>
       <nav class="tabs" role="tablist" aria-label="頁面">
         <a role="tab" href="#dashboard" data-tab="dashboard">訓練紀錄</a>
-        <a role="tab" href="#bests" data-tab="bests">最佳成績</a>
-        <a role="tab" href="#assessment" data-tab="assessment">數據解讀</a>
+        <a role="tab" href="#bests" data-tab="bests">能力成績</a>
+        <a role="tab" href="#assessment" data-tab="assessment">目前狀態</a>
         <a role="tab" href="#coach" data-tab="coach">教練建議</a>
         <a role="tab" href="#methods" data-tab="methods">方法與資料</a>
       </nav>
@@ -165,7 +165,7 @@
       </section>
     </section>
 
-    <!-- ===================== 最佳成績 ===================== -->
+    <!-- ===================== 能力成績 ===================== -->
     <section id="tab-bests" class="tab" hidden>
       <section class="block">
         <h2>戶外距離最佳成績</h2>
@@ -192,6 +192,13 @@
         </div>
       </section>
       <section class="block">
+        <h2>半馬能力</h2>
+        <div class="grid">
+          <div class="card" id="hm-milestones"></div>
+          <div class="card" id="hm-estimates"></div>
+        </div>
+      </section>
+      <section class="block">
         <h2>Daniels VDOT 交叉檢查</h2>
         <p class="block-desc">以 Daniels 的 VDOT 方程式，從比賽成績與近 3 個月的戶外最佳片段推算輕鬆跑（E）與閾值（T）速度，對照目前的跑步機速度設定。只作交叉檢查，不用來改課表。</p>
         <div class="grid">
@@ -200,32 +207,30 @@
       </section>
     </section>
 
-    <!-- ===================== 數據解讀 ===================== -->
+    <!-- ===================== 目前狀態 ===================== -->
     <section id="tab-assessment" class="tab" hidden>
-      <p class="lead" id="as-lead"></p>
+      <div class="card wide state-lead" id="as-overall"></div>
       <section class="block">
-        <h2>各面向狀態</h2>
-        <p class="block-desc">近期數值與你自己的基準比較；變化超過「最小有意義變化（SWC）」才判定為改善或變差。判定規則見「方法與資料」。</p>
-        <div class="status-grid" id="domain-cards"></div>
+        <h2>四個面向</h2>
+        <p class="block-desc">每個面向由數個指標組成，各指標都與你自己的基準比較（變化超過最小有意義變化 SWC 才算改善或下降）。按「查看依據」看每個指標的數值、樣本數與限制；合併規則見「方法與資料」。</p>
+        <div class="summary-grid" id="group-cards"></div>
       </section>
       <section class="block">
-        <h2>半馬能力</h2>
-        <div class="grid">
-          <div class="card" id="hm-milestones"></div>
-          <div class="card" id="hm-estimates"></div>
-        </div>
+        <h2>最近 28 天重要變化</h2>
+        <div class="card wide" id="top-changes"></div>
       </section>
       <section class="block">
-        <h2>每週評估</h2>
-        <div class="card wide table-card"><div id="week-table" class="table-wrap tall"></div></div>
+        <details class="fold"><summary>歷史變化：每週評估與每月摘要</summary>
+          <h3 class="fold-h">每週評估</h3>
+          <div class="card wide table-card"><div id="week-table" class="table-wrap tall"></div></div>
+          <h3 class="fold-h">每月摘要</h3>
+          <div class="card wide table-card"><div id="month-table" class="table-wrap"></div></div>
+        </details>
       </section>
       <section class="block">
-        <h2>每月摘要</h2>
-        <div class="card wide table-card"><div id="month-table" class="table-wrap"></div></div>
-      </section>
-      <section class="block">
-        <h2>課後評估（最近 20 堂）</h2>
-        <div class="card wide table-card"><div id="session-assess-table" class="table-wrap tall"></div></div>
+        <details class="fold"><summary>課後評估（最近 20 堂）</summary>
+          <div class="card wide table-card"><div id="session-assess-table" class="table-wrap tall"></div></div>
+        </details>
       </section>
     </section>
 
@@ -249,6 +254,8 @@
         <div class="card wide notes"><ul>
           <li><b>一堂課</b>＝同一天所有跑步活動。主訓練段、恢復段由演算法依速度與步頻自動分段；跑步機間歇以課表時間結構輔助。分段與課表趟數不符者，各趟指標不列入趨勢。</li>
           <li><b>狀態判定</b>：近 28 天（或最近 3 次）與前 84 天（或更早紀錄）的個人基準比較；最小有意義變化 SWC＝max(0.5 × 基準期標準差, 指標下限)。近期資料少於 2 筆或基準少於 3 筆時為「資料不足」；最近一筆超過 8 週為「資料過舊」。此為個人監測的分析慣例，並非經驗證的臨床門檻。</li>
+          <li><b>目前狀態的四個面向</b>：有氧能力（跑步機固定速度心率、戶外有氧效率）、耐久與速度（長跑耐久性、閾值、間歇恢復）、跑姿參數（步頻、觸地時間、步幅）、恢復（安靜心率、HRV、睡眠時數、心率與 RPE 一致性）。合併規則：可判讀的指標不到一半 → 資料不足；只有改善 → 改善；只有下降 → 下降；同時有改善與下降 → 有升有降；其餘 → 穩定；其他成員為穩定或無法判讀時加註「部分」。最上方的總結句由這四個結果依固定模板組成，不由 AI 生成。</li>
+          <li><b>最近 28 天重要變化</b>：只取判定為改善或下降、近期樣本至少 3 筆（每日指標以近 7 天計）的指標，依「變化量 ÷ SWC」由大到小取前 3 項，不足不補。</li>
           <li><b>強度</b>：以個人心率區間分為低（&lt; 133）、中（133–144）、高（≥ 145 bpm），並與 RPE 對照。心率與 RPE 不一致時，以 RPE 與配速為主要依據。</li>
           <li><b>sRPE</b>＝RPE × 訓練分鐘；每週單調度＝每日 sRPE 平均 ÷ 標準差，壓力值＝週 sRPE × 單調度（僅在該週每堂課都有 RPE 時計算）。</li>
           <li><b>跑姿狀態</b>：取戶外 7.0–9.5 km/h、連續 ≥ 5 分鐘的片段，以個人「指標對速度」的線性斜率（近 112 天、依分鐘加權）校正到 8.0 km/h，每堂課一個值，再比較近 28 天與基準期。</li>
@@ -293,6 +300,6 @@
     </section>
   </div>
 </main>
-<script src="app.js?v=20261004t"></script>
+<script src="app.js?v=20261006a"></script>
 </body>
 </html>

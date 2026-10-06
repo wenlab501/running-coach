@@ -104,6 +104,23 @@ button.ghost { font-size: 12px; padding: 4px 10px; color: var(--text-secondary);
 .lead { font-size: 14px; color: var(--text-secondary); margin: 14px 0 0; }
 
 /* status cards (assessment) */
+.state-lead { margin-bottom: 4px; }
+.state-lead .overall { font-size: 16px; font-weight: 600; color: var(--text-primary); margin: 0 0 6px; line-height: 1.5; }
+.state-lead p { margin: 0; }
+.summary-grid { display: grid; grid-template-columns: 1fr; gap: 12px; align-items: start; }
+@media (min-width: 640px) { .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.group-card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+.group-card h3 { font-size: 16px; margin: 0 0 6px; }
+.group-card .gsum { font-size: 13px; color: var(--text-secondary); margin: 2px 0 8px; line-height: 1.55; }
+.group-card details > summary, details.fold > summary { cursor: pointer; color: var(--accent); font-size: 13px; }
+.group-card details[open] > summary { margin-bottom: 8px; }
+.group-card .status-grid { grid-template-columns: 1fr; gap: 8px; }
+.group-card .status-card { padding: 10px 12px; }
+details.fold > summary { font-size: 15px; font-weight: 600; color: var(--text-primary); padding: 6px 0; }
+details.fold[open] > summary { margin-bottom: 8px; }
+.fold-h { font-size: 14px; margin: 14px 0 6px; }
+ol.changes { margin: 0; padding-left: 1.3em; font-size: 14px; line-height: 1.7; }
+ol.changes .muted { font-size: 12px; }
 .status-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
 .status-card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
 .status-card h3 { font-size: 14px; margin: 0 0 6px; }
@@ -113,7 +130,8 @@ button.ghost { font-size: 12px; padding: 4px 10px; color: var(--text-secondary);
 .status-card .caveat::before { content: "⚠ "; }
 .badge { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; border: 1px solid currentColor; margin-bottom: 6px; }
 .badge.improved { color: var(--good-text); }
-.badge.declined { color: var(--serious-text); }
+.badge.declined { color: var(--warn-text); }
+.badge.mixed { color: var(--text-secondary); }
 .badge.watch { color: var(--warn-text); }
 .badge.stable, .badge.stale, .badge.insufficient { color: var(--text-secondary); }
 .check { list-style: none; padding: 0; margin: 6px 0 0; font-size: 13px; }
