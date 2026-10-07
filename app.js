@@ -427,7 +427,28 @@ SPECS.sdc_trend = () => {
   };
 };
 
+// races: official results and registered races (Notion 「賽事」)
+const todayStr = () => new Date().toLocaleDateString("sv-SE");
+const daysTo = (d) => Math.round((toT(d) - toT(todayStr())) / DAY);
+const raceDist = (km) => (Math.abs(km - 21.0975) < 0.01 ? "半馬" : Math.abs(km - 42.195) < 0.01 ? "全馬" : `${fmt(km, km % 1 ? 1 : 0)} km`);
+const wk = (d) => "日一二三四五六"[new Date(d + "T00:00:00").getDay()];
+
+function renderRaces() {
+  const r = state.data.assessment?.races || {};
+  document.getElementById("race-table").innerHTML = `<p class="card-title">已完成的比賽</p><p class="card-sub">${esc(r.effort_rule || "")}</p>` +
+    ((r.results || []).length ? tableHTML({ cols: ["日期", "賽事", "距離", "晶片時間", "配速", "槍聲時間", "手錶 GPS km", "平均／最高心率", "全力", "VDOT", "備註"],
+      rows: r.results.slice().reverse().map((x) => [x.date, x.name, raceDist(x.distance_km), hms(x.chip_s).replace(/^0:/, ""),
+        `${mmss(x.pace_s_per_km)}/km`, x.gun_s ? hms(x.gun_s).replace(/^0:/, "") : "—", x.watch_km ?? "—",
+        `${x.hr_mean ?? "—"}／${x.hr_max ?? "—"}`, x.full_effort ? "是" : "否", x.vdot ?? "—", x.notes || "—"]) }, [10])
+      : `<p class="muted">尚無有晶片時間的比賽。</p>`);
+  document.getElementById("race-upcoming").innerHTML = `<p class="card-title">已報名的比賽</p><p class="card-sub">優先等級：A 目標賽／B 測驗／C 參加享受</p>` +
+    ((r.upcoming || []).length ? tableHTML({ cols: ["日期", "賽事", "距離", "倒數", "優先等級", "目標"],
+      rows: r.upcoming.map((x) => [`${x.date}（${wk(x.date)}）`, x.name, raceDist(x.distance_km), `${daysTo(x.date)} 天`, x.priority || "未定", x.goal || "—"]) })
+      : `<p class="muted">目前沒有已報名的比賽。</p>`);
+}
+
 function renderBests() {
+  renderRaces();
   const b = state.data.assessment?.bests || {};
   const garmin = Object.fromEntries((b.garmin || []).map((g) => [g.label, g]));
   document.getElementById("pb-table").innerHTML = `<p class="card-title">目前最佳成績</p><p class="card-sub">「Garmin 官方」欄為 Garmin Connect 的個人紀錄，供對照</p>` +
@@ -783,7 +804,10 @@ function renderCoach() {
   const u = coachUnits(c.entries);
   const lead = [["最近一次課後回饋", u.sessions[0]], ["本週教練報告", u.weeks[0]], ["本月策略", u.months[0]]];
   const hist = [["課後回饋", u.sessions.slice(1)], ["週教練報告", u.weeks.slice(1)], ["月度策略", u.months.slice(1)]];
-  root.innerHTML = lead.map(([h, x]) => `<section class="block"><h2>${h}</h2>` +
+  const nx = (state.data.assessment?.races?.upcoming || []).find((x) => daysTo(x.date) >= 0);
+  const nextRace = nx ? `<div class="card wide next-race"><p class="card-title">下一場賽事：${esc(nx.name)}</p>
+    <p class="card-sub">${nx.date}（${wk(nx.date)}）· ${raceDist(nx.distance_km)} · 還有 ${daysTo(nx.date)} 天 · 優先等級：${esc(nx.priority || "未定")}${nx.goal ? ` · 目標：${esc(nx.goal)}` : ""}</p></div>` : "";
+  root.innerHTML = nextRace + lead.map(([h, x]) => `<section class="block"><h2>${h}</h2>` +
       (x ? coachCard(x) : `<p class="muted">尚無資料。</p>`) + "</section>").join("") +
     `<section class="block"><details class="fold"><summary>歷史教練紀錄</summary>` +
     hist.map(([h, xs]) => `<h3 class="fold-h">${h}（${xs.length}）</h3>` + (xs.length ? xs.map((x) => coachCard(x)).join("") : `<p class="muted">無。</p>`)).join("") +

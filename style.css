@@ -119,6 +119,8 @@ button.ghost { font-size: 12px; padding: 4px 10px; color: var(--text-secondary);
 details.fold > summary { font-size: 15px; font-weight: 600; color: var(--text-primary); padding: 6px 0; }
 details.fold[open] > summary { margin-bottom: 8px; }
 .fold-h { font-size: 14px; margin: 14px 0 6px; }
+.next-race { margin: 4px 0 8px; border-left: 4px solid var(--accent); }
+.next-race .card-title { margin-bottom: 2px; }
 .head-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 .mode-badge { font-size: 12px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-secondary); white-space: nowrap; }
 .mode-badge.owner { color: var(--accent); border-color: currentColor; }

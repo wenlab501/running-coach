@@ -9,7 +9,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#2a78d6">
-<link rel="stylesheet" href="style.css?v=20261007a">
+<link rel="stylesheet" href="style.css?v=20261007b">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.6.0/echarts.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
@@ -170,6 +170,14 @@
     <!-- ===================== 能力成績 ===================== -->
     <section id="tab-bests" class="tab" hidden>
       <section class="block">
+        <h2>賽事成績</h2>
+        <p class="block-desc">以大會晶片時間為準；手錶 GPS 距離並列，可看出 GPS 誤差。平均心率達個人 LTHR 95% 以上視為全力，只有全力的比賽用於 VDOT 與半馬推估。</p>
+        <div class="grid">
+          <div class="card wide" id="race-table"></div>
+          <div class="card wide" id="race-upcoming"></div>
+        </div>
+      </section>
+      <section class="block">
         <h2>戶外距離最佳成績</h2>
         <p class="block-desc">任何一次戶外跑步中，連續跑完該距離的最短時間（含訓練片段與停頓），依 GPS 距離計算；比賽成績以大會計時為準。跑步機距離為手腕估計，不列入。</p>
         <div class="grid">
@@ -297,6 +305,6 @@
     </section>
   </div>
 </main>
-<script src="app.js?v=20261007a"></script>
+<script src="app.js?v=20261007b"></script>
 </body>
 </html>
