@@ -890,7 +890,7 @@ function renderCoach() {
   const nx = (state.data.assessment?.races?.upcoming || []).find((x) => daysTo(x.date) >= 0);
   const nextRace = nx ? `<div class="card wide next-race"><p class="card-title">下一場賽事：${esc(nx.name)}</p>
     <p class="card-sub">${nx.date}（${wk(nx.date)}）· ${raceDist(nx.distance_km)} · 還有 ${daysTo(nx.date)} 天${nx.goal ? ` · 目標：${esc(nx.goal)}` : ""}</p></div>` : "";
-  root.innerHTML = nextRace + lead.map(([h, x]) => `<section class="block"><h2>${h}</h2>` +
+  root.innerHTML = planCard() + nextRace + lead.map(([h, x]) => `<section class="block"><h2>${h}</h2>` +
       (x ? coachCard(x) : `<p class="muted">尚無資料。</p>`) + "</section>").join("") +
     `<section class="block"><details class="fold"><summary>歷史教練紀錄</summary>` +
     hist.map(([h, xs]) => `<h3 class="fold-h">${h}（${xs.length}）</h3>` + (xs.length ? xs.map((x) => coachCard(x)).join("") : `<p class="muted">無。</p>`)).join("") +
@@ -927,11 +927,43 @@ function routeFromHash() {
   window.scrollTo(0, 0);
 }
 
+/* 「下一次課表」: from the latest weekly report's structured plan (plan[] with M/D（週） dates and kind) */
+function planCard() {
+  const u = coachUnits(state.data.coach?.entries || []);
+  const week = u.weeks.find((w) => w.parts.some((e) => Array.isArray(e.plan) && e.plan.length));
+  if (!week) return "";
+  const e = week.parts.find((x) => Array.isArray(x.plan) && x.plan.length);
+  const start = (e.plan_period || e.period || [])[0] || e.date;
+  const y0 = +start.slice(0, 4), m0 = +start.slice(5, 7);
+  const iso = (md) => { const [m, d] = md.match(/^(\d{1,2})\/(\d{1,2})/).slice(1).map(Number);
+    return `${m < m0 ? y0 + 1 : y0}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`; };
+  const rows = e.plan.filter((r) => /^\d{1,2}\/\d{1,2}/.test(r.date || "")).map((r) => ({ ...r, iso: iso(r.date) }));
+  const today = todayStr();
+  const ranToday = state.data.sessions.some((s) => s.date === today);
+  const isRun = (r) => r.kind === "跑步" || r.kind === "比賽";
+  const next = rows.find((r) => isRun(r) && (r.iso > today || (r.iso === today && !ranToday)));
+  const todayRow = rows.find((r) => r.iso === today);
+  const rest = rows.filter((r) => r.iso >= today);
+  const detail = (r) => [r.speed, r.time, r.rpe ? `RPE ${r.rpe}` : "", r.note].filter(Boolean).map(esc).join("｜");
+  if (!rest.length) return `<article class="card wide next-plan"><p class="card-title">下一次課表</p>
+    <p class="card-sub">本週課表已結束，等待下一份週教練報告（每週日 23:00 自動產生）。</p></article>`;
+  const rules = e.adjustment_rules || [];
+  return `<article class="card wide next-plan">
+    <p class="card-title">${next ? `下一次課表：${esc(next.date)} ${esc(next.content)}` : "本週沒有剩下的跑步課"}</p>
+    ${next ? `<p class="plan-line">${detail(next) || "—"}</p>` : ""}
+    ${todayRow && todayRow !== next ? `<p class="card-sub">今天 ${esc(todayRow.date)}：${esc(todayRow.content)}${detail(todayRow) ? `｜${detail(todayRow)}` : ""}</p>` : ""}
+    <details><summary>本週剩餘安排${rules.length ? "與調整條件" : ""}</summary>
+      ${tableHTML({ cols: ["日期", "內容", "速度／配速", "時間", "RPE", "備註"], rows: rest.map((r) => [r.date, r.content, r.speed || "—", r.time || "—", r.rpe || "—", r.note || "—"]) }, [1, 2, 5])}
+      ${rules.length ? `<p class="card-sub">調整條件</p><ul>${rules.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
+    </details>
+    <p class="evidence">來源：<a href="#coach">${esc(week.title)}</a></p></article>`;
+}
+
 /* ================= mobile home and 「更多」 ================= */
 function renderHome() {
   const d = state.data, a = d.assessment || {}, ss = a.status_summary;
   const card = (title, body) => `<article class="card wide home-card"><p class="card-title">${title}</p>${body}</article>`;
-  const parts = [];
+  const parts = [planCard()];
   if (ss) parts.push(card("目前狀態", `<ul class="home-status">${ss.groups.map((g) => {
     const [icon, label] = STATUS[g.status] || ["", g.status];
     return `<li><span class="badge ${g.status}">${icon} ${g.partial ? "部分" : ""}${label}</span> ${esc(g.label)}</li>`; }).join("")}</ul>
