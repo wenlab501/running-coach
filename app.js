@@ -13,64 +13,118 @@ async function decryptWith(blob, key) {
   const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64(blob.iv) }, key, b64(blob.ct));
   return JSON.parse(new TextDecoder().decode(pt));
 }
+let offlineData = false;   // set when the service worker served the last cached encrypted file
 async function fetchBlob(name) {
-  try { const r = await fetch(`data/${name}`, { cache: "no-store" }); return r.ok ? await r.json() : null; } catch { return null; }
+  try {
+    const r = await fetch(`data/${name}`, { cache: "no-store" });
+    if (!r.ok) return null;
+    if (r.headers.get("X-RC-Offline")) offlineData = true;
+    return await r.json();
+  } catch { return null; }
+}
+async function fetchBlobs() {
+  return [["owner", await fetchBlob("dashboard.enc.json")], ["viewer", await fetchBlob("dashboard.viewer.enc.json")]].filter(([, b]) => b);
 }
 // owner file first, then the viewer file; files sharing a salt need only one PBKDF2 derivation
 async function decryptAny(pass) {
-  const files = [["owner", await fetchBlob("dashboard.enc.json")], ["viewer", await fetchBlob("dashboard.viewer.enc.json")]];
+  const files = await fetchBlobs();
+  if (!files.length) throw new Error("nodata");
   const keys = {};
   for (const [mode, blob] of files) {
-    if (!blob) continue;
     const id = `${blob.salt}|${blob.iter}`;
     keys[id] = keys[id] || await deriveKey(blob, pass);
-    try { return { mode, data: await decryptWith(blob, keys[id]) }; } catch { /* wrong key for this file */ }
+    try { return { mode, blob, key: keys[id], data: await decryptWith(blob, keys[id]) }; } catch { /* wrong key */ }
   }
-  throw new Error("no match");
+  throw new Error("nomatch");
 }
 
-const KEY = "rc-pass";
-const storage = (kind) => ({
-  get() { try { return window[kind].getItem(KEY); } catch { return null; } },
-  set(v) { try { window[kind].setItem(KEY, v); } catch { /* unavailable */ } },
-  del() { try { window[kind].removeItem(KEY); } catch { /* unavailable */ } },
-});
-const sess = storage("sessionStorage"), local = storage("localStorage");
+/* Remembered login: a NON-EXTRACTABLE AES key in IndexedDB (the passphrase is never stored). The salt is
+   stable between publishes and changes only when a passphrase changes, which invalidates the stored key. */
+const IDB = { name: "running-coach", store: "auth", rec: "remembered" };
+function idb(mode, op) {
+  return new Promise((resolve) => {
+    let open;
+    try { open = indexedDB.open(IDB.name, 1); } catch { resolve(null); return; }
+    open.onupgradeneeded = () => open.result.createObjectStore(IDB.store);
+    open.onerror = () => resolve(null);
+    open.onsuccess = () => {
+      try {
+        const tx = open.result.transaction(IDB.store, mode);
+        const req = op(tx.objectStore(IDB.store));
+        tx.oncomplete = () => resolve(req.result ?? true);
+        tx.onerror = tx.onabort = () => resolve(null);
+      } catch { resolve(null); }
+    };
+  });
+}
+const keyStore = {
+  get: () => idb("readonly", (s) => s.get(IDB.rec)),
+  set: (v) => idb("readwrite", (s) => s.put(v, IDB.rec)),
+  del: () => idb("readwrite", (s) => s.delete(IDB.rec)),
+};
+// remove plaintext passphrases stored by earlier versions
+for (const k of ["localStorage", "sessionStorage"]) { try { window[k].removeItem("rc-pass"); } catch { /* unavailable */ } }
+
+function enter(mode, data) {
+  state.mode = mode;
+  document.getElementById("gate").hidden = true;
+  document.getElementById("app").hidden = false;
+  const mb = document.getElementById("mode-badge");
+  mb.textContent = mode === "viewer" ? "瀏覽模式" : "完整模式";
+  mb.className = `mode-badge ${mode}`;
+  init(data);
+}
 
 async function unlock(pass, remember) {
   const msg = document.getElementById("gate-msg");
   msg.textContent = "解密中…";
-  let data;
-  try {
-    const r = await decryptAny(pass);
-    data = r.data;
-    state.mode = r.mode;
-  } catch {
-    msg.textContent = "無法解密：密碼錯誤或資料不存在。";
-    local.del();
+  let r;
+  try { r = await decryptAny(pass); } catch (err) {
+    msg.textContent = err.message === "nodata" ? "目前沒有可用資料：請確認網路連線。" : "無法解密：請確認密碼。";
     return;
   }
-  sess.set(pass);
-  if (remember) local.set(pass);
-  document.getElementById("gate").hidden = true;
-  document.getElementById("app").hidden = false;
-  const mb = document.getElementById("mode-badge");
-  mb.textContent = state.mode === "viewer" ? "瀏覽模式" : "完整模式";
-  mb.className = `mode-badge ${state.mode}`;
-  init(data);
+  if (remember) {
+    const ok = await keyStore.set({ salt: r.blob.salt, iter: r.blob.iter, key: r.key, mode: r.mode });
+    if (!ok) msg.textContent = "此瀏覽器無法記住登入，下次需要重新輸入密碼。";
+  }
+  enter(r.mode, r.data);
+}
+
+async function unlockRemembered() {
+  const rec = await keyStore.get();
+  if (!rec || !rec.key) return;
+  const msg = document.getElementById("gate-msg");
+  msg.textContent = "使用已記住的登入…";
+  for (const [mode, blob] of await fetchBlobs()) {
+    if (blob.salt !== rec.salt || blob.iter !== rec.iter) continue;
+    try { enter(mode, await decryptWith(blob, rec.key)); msg.textContent = ""; return; } catch { /* not this file */ }
+  }
+  await keyStore.del();
+  msg.textContent = "密碼設定已更新或資料無法取得，請重新輸入密碼。";
 }
 
 document.getElementById("gate-form").addEventListener("submit", (e) => {
   e.preventDefault();
   unlock(document.getElementById("pw").value, document.getElementById("remember").checked);
 });
-document.getElementById("logout").addEventListener("click", () => { sess.del(); local.del(); location.reload(); });
+const logout = async () => { await keyStore.del(); location.reload(); };
+document.getElementById("logout").addEventListener("click", logout);
+
+// service worker (offline shell + last encrypted data); tell the user when a new version took over
+if ("serviceWorker" in navigator) {
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register("service-worker.js").catch(() => { /* not available (e.g. file://) */ });
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!hadController) return;
+    const b = document.getElementById("update-banner");
+    b.hidden = false;
+  });
+}
 // public summary on the password page (month-level periods and counts only; everything else is encrypted)
 fetch("data/public_summary.json", { cache: "no-store" }).then((r) => (r.ok ? r.json() : {})).then((p) => {
   document.querySelectorAll("[data-pub]").forEach((el) => { const v = p[el.dataset.pub]; if (v != null) el.textContent = String(v); });
 }).catch(() => { /* leave placeholders */ });
-const saved = sess.get() || local.get();
-if (saved) unlock(saved, false);
+unlockRemembered();
 
 /* ================= state & helpers ================= */
 const CAT_ORDER = ["steady_outdoor", "steady_treadmill", "threshold_treadmill", "interval_treadmill", "interval_track", "tempo_outdoor", "race"];
@@ -815,16 +869,24 @@ function renderCoach() {
 }
 
 /* ================= tabs & init ================= */
-const TABS = ["dashboard", "bests", "assessment", "coach", "methods"];
+const TABS = ["home", "dashboard", "bests", "assessment", "coach", "methods", "more"];
+const isMobile = () => matchMedia("(max-width: 767px)").matches;
+// bottom navigation (mobile): bests and methods live under 「更多」
+const NAV_OF = { home: "home", dashboard: "dashboard", assessment: "assessment", coach: "coach", bests: "more", methods: "more", more: "more" };
 function showTab(tab) {
-  if (!TABS.includes(tab)) tab = "dashboard";
+  if (!TABS.includes(tab)) tab = isMobile() ? "home" : "dashboard";
+  if (!isMobile() && (tab === "home" || tab === "more")) tab = "dashboard";   // mobile-only views
   state.tab = tab;
   TABS.forEach((t) => {
     document.getElementById(`tab-${t}`).hidden = t !== tab;
-    document.querySelector(`.tabs [data-tab="${t}"]`).setAttribute("aria-selected", t === tab ? "true" : "false");
+    document.querySelector(`.tabs [data-tab="${t}"]`)?.setAttribute("aria-selected", t === tab ? "true" : "false");
+  });
+  document.querySelectorAll(".bottom-nav a").forEach((a) => {
+    if (a.dataset.nav === NAV_OF[tab]) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
   });
   if (!state.rendered[tab]) {
-    ({ dashboard: renderDashboard, bests: renderBests, assessment: renderAssessment, coach: renderCoach, methods: () => {} })[tab]();
+    ({ home: renderHome, dashboard: renderDashboard, bests: renderBests, assessment: renderAssessment,
+       coach: renderCoach, methods: () => {}, more: renderMore })[tab]();
     state.rendered[tab] = true;
   }
   charts.forEach((c) => c.resize());
@@ -832,12 +894,56 @@ function showTab(tab) {
 function routeFromHash() {
   const h = location.hash.replace("#", "");
   if (h.startsWith("sec-")) { showTab("dashboard"); document.getElementById(h)?.scrollIntoView(); return; }
-  showTab(h || "dashboard");
+  showTab(h || (isMobile() ? "home" : "dashboard"));
   window.scrollTo(0, 0);
 }
 
+/* ================= mobile home and 「更多」 ================= */
+function renderHome() {
+  const d = state.data, a = d.assessment || {}, ss = a.status_summary;
+  const card = (title, body) => `<article class="card wide home-card"><p class="card-title">${title}</p>${body}</article>`;
+  const parts = [];
+  if (ss) parts.push(card("目前狀態", `<ul class="home-status">${ss.groups.map((g) => {
+    const [icon, label] = STATUS[g.status] || ["", g.status];
+    return `<li><span class="badge ${g.status}">${icon} ${g.partial ? "部分" : ""}${label}</span> ${esc(g.label)}</li>`; }).join("")}</ul>
+    <p class="evidence"><a href="#assessment">查看依據</a></p>`));
+  const last = d.sessions.at(-1);
+  if (last) {
+    const fb = (d.coach?.entries || []).find((e) => e.type === "課後回饋" && e.date === last.date);
+    parts.push(card("最近一次訓練", `<p class="card-sub">${last.date}（${wk(last.date)}）· ${esc(catLabel(last.cat))} · ${fmt(last.dist_km, 1)} km · ${fmt(last.run_min)} 分${last.rpe != null ? ` · RPE ${fmt(last.rpe)}` : ""}</p>
+      <p>${keyMetric(last)}</p>${fb ? `<p class="coach-summary">${esc(fb.summary || "")}</p>` : ""}<p class="evidence"><a href="#coach">教練建議</a></p>`));
+  }
+  const u = coachUnits(d.coach?.entries || []);
+  const w = u.weeks[0], m = u.months[0];
+  if (w) parts.push(card("本週教練方向", `<p class="card-sub">${esc(w.title)}${w.parts.at(-1).direction ? ` · 建議方向：${esc(w.parts.at(-1).direction)}` : ""}</p>
+    <p class="coach-summary">${esc(w.parts.at(-1).summary || "")}</p>`));
+  if (m) parts.push(card("本月策略", `<p class="card-sub">${esc(m.title)}</p><p class="coach-summary">${esc(m.parts[0].summary || "")}</p>`));
+  const nx = (a.races?.upcoming || []).find((x) => daysTo(x.date) >= 0);
+  if (nx) parts.push(card(`下一場賽事：${esc(nx.name)}`, `<p class="card-sub">${nx.date}（${wk(nx.date)}）· ${raceDist(nx.distance_km)} · 還有 ${daysTo(nx.date)} 天${nx.goal ? ` · 目標：${esc(nx.goal)}` : ""}</p>`));
+  document.getElementById("home-root").innerHTML = parts.join("") +
+    `<p class="muted">資料產生時間（UTC）：${esc(d.meta.generated_at)}${offlineData ? " · 離線模式" : ""}</p>`;
+}
+
+function renderMore() {
+  const d = state.data;
+  document.getElementById("more-root").innerHTML = `<div class="card wide more-list">
+    <a href="#bests">能力成績</a><a href="#methods">方法與資料</a></div>
+    <div class="card wide notes"><p>模式：${state.mode === "viewer" ? "瀏覽模式" : "完整模式"}</p>
+    <p>資料產生時間（UTC）：${esc(d.meta.generated_at)}${offlineData ? "（離線模式：上次下載的資料）" : ""}</p>
+    <p><button type="button" class="ghost" id="logout-more">登出此裝置</button></p></div>`;
+  document.getElementById("logout-more").onclick = logout;
+}
+
+const SUPPORTED_SCHEMAS = ["dash-1"];
 function init(data) {
   state.data = data;
+  const sv = data.meta?.schema_version;
+  const nb = document.getElementById("net-banner");
+  const notes = [];
+  if (offlineData) notes.push(`離線模式：使用上次下載的資料（產生時間 ${data.meta.generated_at} UTC）`);
+  if (sv && !SUPPORTED_SCHEMAS.includes(sv)) notes.push("資料格式已更新，請重新整理頁面。");
+  nb.textContent = notes.join("　");
+  nb.hidden = !notes.length;
   state.rendered = {};   // a new login (owner/viewer) must redraw every tab
   const m = data.meta;
   document.getElementById("meta").textContent = `資料期間 ${m.first_date} – ${m.last_date} · ${m.n_sessions} 堂課`;
