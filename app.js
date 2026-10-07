@@ -14,6 +14,8 @@ async function decryptWith(blob, key) {
   return JSON.parse(new TextDecoder().decode(pt));
 }
 let offlineData = false;   // set when the service worker served the last cached encrypted file
+// decryption key of this session, kept in memory only, used to refresh the data when the app returns
+const session = { key: null, mode: null, iv: null, checkedAt: 0 };
 async function fetchBlob(name) {
   try {
     const r = await fetch(`data/${name}`, { cache: "no-store" });
@@ -67,6 +69,7 @@ for (const k of ["localStorage", "sessionStorage"]) { try { window[k].removeItem
 
 function enter(mode, data) {
   state.mode = mode;
+  session.checkedAt = Date.now();
   document.getElementById("gate").hidden = true;
   document.getElementById("app").hidden = false;
   const mb = document.getElementById("mode-badge");
@@ -83,6 +86,7 @@ async function unlock(pass, remember) {
     msg.textContent = err.message === "nodata" ? "目前沒有可用資料：請確認網路連線。" : "無法解密：請確認密碼。";
     return;
   }
+  Object.assign(session, { key: r.key, mode: r.mode, iv: r.blob.iv });
   if (remember) {
     const ok = await keyStore.set({ salt: r.blob.salt, iter: r.blob.iter, key: r.key, mode: r.mode });
     if (!ok) msg.textContent = "此瀏覽器無法記住登入，下次需要重新輸入密碼。";
@@ -97,7 +101,11 @@ async function unlockRemembered() {
   msg.textContent = "使用已記住的登入…";
   for (const [mode, blob] of await fetchBlobs()) {
     if (blob.salt !== rec.salt || blob.iter !== rec.iter) continue;
-    try { enter(mode, await decryptWith(blob, rec.key)); msg.textContent = ""; return; } catch { /* not this file */ }
+    try {
+      const data = await decryptWith(blob, rec.key);
+      Object.assign(session, { key: rec.key, mode, iv: blob.iv });
+      enter(mode, data); msg.textContent = ""; return;
+    } catch { /* not this file */ }
   }
   await keyStore.del();
   msg.textContent = "密碼設定已更新或資料無法取得，請重新輸入密碼。";
@@ -109,6 +117,27 @@ document.getElementById("gate-form").addEventListener("submit", (e) => {
 });
 const logout = async () => { await keyStore.del(); location.reload(); };
 document.getElementById("logout").addEventListener("click", logout);
+
+// returning to the app (iPhone home-screen apps stay alive in the background): if the last check is older
+// than 5 minutes, fetch the encrypted data again and redraw when it changed, staying on the same tab
+const REFRESH_AFTER_MS = 5 * 60 * 1000;
+async function refreshOnReturn() {
+  if (document.visibilityState !== "visible" || !session.key || Date.now() - session.checkedAt < REFRESH_AFTER_MS) return;
+  session.checkedAt = Date.now();
+  offlineData = false;
+  const f = (await fetchBlobs()).find(([m]) => m === session.mode);
+  if (!f || f[1].iv === session.iv) return;               // nothing new (or offline copy of the same file)
+  try {
+    const data = await decryptWith(f[1], session.key);
+    session.iv = f[1].iv;
+    init(data);
+  } catch {
+    const nb = document.getElementById("net-banner");
+    nb.textContent = "密碼設定已更新，請登出後重新登入以取得最新資料。";
+    nb.hidden = false;
+  }
+}
+document.addEventListener("visibilitychange", refreshOnReturn);
 
 // service worker (offline shell + last encrypted data); tell the user when a new version took over
 if ("serviceWorker" in navigator) {
@@ -935,7 +964,7 @@ function renderMore() {
 }
 
 const SUPPORTED_SCHEMAS = ["dash-1"];
-function init(data) {
+function applyData(data) {
   state.data = data;
   const sv = data.meta?.schema_version;
   const nb = document.getElementById("net-banner");
@@ -948,6 +977,13 @@ function init(data) {
   const m = data.meta;
   document.getElementById("meta").textContent = `資料期間 ${m.first_date} – ${m.last_date} · ${m.n_sessions} 堂課`;
   document.getElementById("footer").textContent = `資料產生時間（UTC）：${m.generated_at}`;
+}
+
+let bound = false;
+function init(data) {
+  applyData(data);
+  if (bound) { routeFromHash(); return; }   // listeners are attached only once
+  bound = true;
   document.getElementById("range-filter").addEventListener("click", (e) => {
     const b = e.target.closest("button"); if (!b) return;
     state.range = b.dataset.range === "all" ? "all" : +b.dataset.range;

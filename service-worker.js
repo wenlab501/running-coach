@@ -3,7 +3,7 @@
  * Page navigation: network-first, cached shell when offline.
  * Encrypted data (dashboard*.enc.json) and the public summary: network-first, last good copy when offline
  * (marked with X-RC-Offline). Decrypted data never reaches this worker or any cache. */
-const VERSION = "rc-2026-10-07";
+const VERSION = "rc-2026-10-07b";
 const STATIC = `rc-static-${VERSION}`;
 const DATA = "rc-data";
 const SHELL = ["./", "index.html", "manifest.webmanifest", "icon.svg", "icon-192.png", "icon-512.png", "apple-touch-icon.png"];

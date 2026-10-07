@@ -242,7 +242,9 @@ footer { margin-top: 24px; }
 @media (max-width: 767px) {
   .site-head #logout { display: none; }
   .site-head .title-row { align-items: center; }
-  .site-head h1.brand { font-size: 18px; white-space: nowrap; margin: 0; }
+  .site-head h1.brand { font-size: 18px; white-space: nowrap; margin: 0; min-width: 0; }
+  .site-head .title-row > div:first-child { min-width: 0; }
+  .site-head h1.brand a.home { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .site-head h1.brand img { width: 26px; height: 26px; }
   .site-head #meta { font-size: 12px; margin: 2px 0 6px; }
 }
