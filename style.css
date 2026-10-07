@@ -238,3 +238,11 @@ footer { margin-top: 24px; }
   .bottom-nav a[aria-current="page"] { color: var(--accent); font-weight: 700; box-shadow: inset 0 2px 0 var(--accent); }
 }
 @media (min-width: 768px) { #tab-home, #tab-more { display: none; } }
+/* phone header: one-line title; logout lives under 「更多」 */
+@media (max-width: 767px) {
+  .site-head #logout { display: none; }
+  .site-head .title-row { align-items: center; }
+  .site-head h1.brand { font-size: 18px; white-space: nowrap; margin: 0; }
+  .site-head h1.brand img { width: 26px; height: 26px; }
+  .site-head #meta { font-size: 12px; margin: 2px 0 6px; }
+}
