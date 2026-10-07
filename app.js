@@ -441,9 +441,9 @@ function renderRaces() {
         `${mmss(x.pace_s_per_km)}/km`, x.gun_s ? hms(x.gun_s).replace(/^0:/, "") : "—", x.watch_km ?? "—",
         `${x.hr_mean ?? "—"}／${x.hr_max ?? "—"}`, x.full_effort ? "是" : "否", x.vdot ?? "—", x.notes || "—"]) }, [10])
       : `<p class="muted">尚無有晶片時間的比賽。</p>`);
-  document.getElementById("race-upcoming").innerHTML = `<p class="card-title">已報名的比賽</p><p class="card-sub">優先等級：A 目標賽／B 測驗／C 參加享受</p>` +
-    ((r.upcoming || []).length ? tableHTML({ cols: ["日期", "賽事", "距離", "倒數", "優先等級", "目標"],
-      rows: r.upcoming.map((x) => [`${x.date}（${wk(x.date)}）`, x.name, raceDist(x.distance_km), `${daysTo(x.date)} 天`, x.priority || "未定", x.goal || "—"]) })
+  document.getElementById("race-upcoming").innerHTML = `<p class="card-title">已報名的比賽</p>` +
+    ((r.upcoming || []).length ? tableHTML({ cols: ["日期", "賽事", "距離", "倒數", "目標", "備註"],
+      rows: r.upcoming.map((x) => [`${x.date}（${wk(x.date)}）`, x.name, raceDist(x.distance_km), `${daysTo(x.date)} 天`, x.goal || "—", x.notes || "—"]) }, [5])
       : `<p class="muted">目前沒有已報名的比賽。</p>`);
 }
 
@@ -806,7 +806,7 @@ function renderCoach() {
   const hist = [["課後回饋", u.sessions.slice(1)], ["週教練報告", u.weeks.slice(1)], ["月度策略", u.months.slice(1)]];
   const nx = (state.data.assessment?.races?.upcoming || []).find((x) => daysTo(x.date) >= 0);
   const nextRace = nx ? `<div class="card wide next-race"><p class="card-title">下一場賽事：${esc(nx.name)}</p>
-    <p class="card-sub">${nx.date}（${wk(nx.date)}）· ${raceDist(nx.distance_km)} · 還有 ${daysTo(nx.date)} 天 · 優先等級：${esc(nx.priority || "未定")}${nx.goal ? ` · 目標：${esc(nx.goal)}` : ""}</p></div>` : "";
+    <p class="card-sub">${nx.date}（${wk(nx.date)}）· ${raceDist(nx.distance_km)} · 還有 ${daysTo(nx.date)} 天${nx.goal ? ` · 目標：${esc(nx.goal)}` : ""}</p></div>` : "";
   root.innerHTML = nextRace + lead.map(([h, x]) => `<section class="block"><h2>${h}</h2>` +
       (x ? coachCard(x) : `<p class="muted">尚無資料。</p>`) + "</section>").join("") +
     `<section class="block"><details class="fold"><summary>歷史教練紀錄</summary>` +
