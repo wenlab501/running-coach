@@ -198,6 +198,7 @@ ol.changes .muted { font-size: 12px; }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
 .chart { width: 100%; height: 260px; }
 .card.wide .chart { height: 300px; }
+.card[data-chart="calendar"] .chart { height: 150px; }
 .empty { color: var(--text-muted); font-size: 13px; padding: 40px 0; text-align: center; }
 
 .table-wrap { overflow-x: auto; max-height: 420px; overflow-y: auto; }

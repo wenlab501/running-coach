@@ -221,6 +221,41 @@ const itemTip = (lines) => (p) => lines(p.data.raw || {}, p).filter(Boolean).joi
 
 /* ================= dashboard chart specs ================= */
 const SPECS = {
+  // GitHub-style daily calendar: colour = running minutes that day (4 bins); 12 months (6 on phones)
+  calendar: () => {
+    const end = lastDate();
+    const days = isMobile() ? 182 : 364;
+    const start = addDays(end, -days);
+    const byDay = {};
+    for (const s of state.data.sessions) if (s.date >= start && s.date <= end) byDay[s.date] = s;
+    const bins = [[1, 29, "< 30 分"], [30, 59, "30–59 分"], [60, 89, "60–89 分"], [90, 100000, "≥ 90 分"]];
+    const colors = ["--q1", "--q2", "--q3", "--q4"].map(css);
+    const rows = Object.values(byDay).sort((a, b) => (a.date < b.date ? -1 : 1));
+    return {
+      title: "每日跑步日曆", sub: `每一格是一天，顏色越深跑得越久；${isMobile() ? "最近 6 個月" : "最近 12 個月"}，空白格＝沒有跑步`,
+      legend: bins.map(([, , l], i) => [l, colors[i]]),
+      option: {
+        animation: false,
+        textStyle: { fontFamily: getComputedStyle(document.body).fontFamily, color: css("--text-secondary") },
+        tooltip: { confine: true, backgroundColor: css("--surface-1"), borderColor: css("--border"),
+          textStyle: { color: css("--text-primary"), fontSize: 12 },
+          formatter: (p) => { const s = byDay[p.value[0]];
+            return s ? `${s.date}（${wk(s.date)}）<br>${esc(catLabel(s.cat))}<br>跑步 ${fmt(s.run_min)} 分 · ${fmt(s.dist_km, 1)} km` : ""; } },
+        visualMap: { show: false, type: "piecewise", dimension: 1,
+          pieces: bins.map(([min, max], i) => ({ min, max, color: colors[i] })) },
+        calendar: { range: [start, end], top: 22, left: 30, right: 6, bottom: 6, cellSize: ["auto", 14],
+          splitLine: { show: false }, yearLabel: { show: false },
+          itemStyle: { color: css("--grid"), borderColor: css("--surface-1"), borderWidth: 2 },
+          dayLabel: { firstDay: 1, nameMap: ["日", "一", "二", "三", "四", "五", "六"], color: css("--text-muted"), fontSize: 10 },
+          monthLabel: { nameMap: ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"],
+            color: css("--text-muted"), fontSize: 10 } },
+        series: [{ type: "heatmap", coordinateSystem: "calendar",
+          data: rows.map((s) => [s.date, Math.max(1, Math.round(s.run_min || 0))]) }],
+      },
+      table: { cols: ["日期", "星期", "類型", "跑步分鐘", "距離 km"],
+        rows: rows.slice().reverse().map((s) => [s.date, wk(s.date), catLabel(s.cat), s.run_min, s.dist_km]) },
+    };
+  },
   weekly: () => {
     const weeks = state.data.weekly.filter((w) => inRange(addDays(w.week, 6)));
     const cats = CAT_ORDER.filter((c) => weeks.some((w) => w.by_cat[c]));
@@ -963,11 +998,12 @@ function planCard() {
 function renderHome() {
   const d = state.data, a = d.assessment || {}, ss = a.status_summary;
   const card = (title, body) => `<article class="card wide home-card"><p class="card-title">${title}</p>${body}</article>`;
-  const parts = [planCard()];
+  const parts = [];
   if (ss) parts.push(card("目前狀態", `<ul class="home-status">${ss.groups.map((g) => {
     const [icon, label] = STATUS[g.status] || ["", g.status];
     return `<li><span class="badge ${g.status}">${icon} ${g.partial ? "部分" : ""}${label}</span> ${esc(g.label)}</li>`; }).join("")}</ul>
     <p class="evidence"><a href="#assessment">查看依據</a></p>`));
+  parts.push(planCard());
   const last = d.sessions.at(-1);
   if (last) {
     const fb = (d.coach?.entries || []).find((e) => e.type === "課後回饋" && e.date === last.date);
