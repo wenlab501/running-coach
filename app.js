@@ -223,13 +223,13 @@ const itemTip = (lines) => (p) => lines(p.data.raw || {}, p).filter(Boolean).joi
 /* 計量方式 for the daily calendar and the weekly stacked bars (訓練負荷). Bins are fixed display cut-offs
  * chosen near the quartiles of the past year's sessions, not physiological zones. */
 const VOL = {
-  min: { label: "時間", unit: "分", nd: 0, day: (s) => s.run_min, wkey: "by_cat", deeper: "跑得越久",
+  min: { label: "時間", unit: "分", nd: 0, day: (s) => s.run_min, wkey: "by_cat",
     bins: [[0, 30, "< 30 分"], [30, 60, "30–59 分"], [60, 90, "60–89 分"], [90, null, "≥ 90 分"]],
     title: "每週跑步時間（分鐘）", sub: "依課表類型堆疊；不含走路與停止" },
-  km: { label: "距離", unit: "km", nd: 1, day: (s) => s.dist_km, wkey: "by_cat_km", deeper: "跑得越遠",
+  km: { label: "距離", unit: "km", nd: 1, day: (s) => s.dist_km, wkey: "by_cat_km",
     bins: [[0, 5, "< 5 km"], [5, 8, "5–8 km"], [8, 12, "8–12 km"], [12, null, "≥ 12 km"]],
     title: "每週距離（km）", sub: "依課表類型堆疊；總距離，含暖身與緩和的走路" },
-  load: { label: "負荷", unit: "", nd: 0, day: (s) => s.load, wkey: "by_cat_load", deeper: "負荷越高",
+  load: { label: "負荷", unit: "", nd: 0, day: (s) => s.load, wkey: "by_cat_load",
     bins: [[0, 75, "< 75"], [75, 125, "75–124"], [125, 175, "125–174"], [175, null, "≥ 175"]],
     title: "每週訓練負荷（Garmin）", sub: "依課表類型堆疊；Garmin 依心率估算的單次課負荷，與「急性與慢性訓練負荷」同源" },
 };
@@ -243,7 +243,6 @@ const SPECS = {
     const start = state.range === "all" ? first : addDays(end, -(state.range - 1));
     const nDays = Math.round((toT(end) - toT(start)) / DAY) + 1;
     const weeks = Math.ceil(((new Date(toT(start)).getDay() + 6) % 7 + nDays) / 7);
-    const rangeLabel = { all: "全部期間", 182: "近 26 週", 84: "近 12 週", 28: "近 4 週" }[state.range] || "";
     const byDay = {};
     for (const s of state.data.sessions) if (s.date >= start && s.date <= end) byDay[s.date] = s;
     const v = VOL[state.vol];
@@ -251,7 +250,7 @@ const SPECS = {
     const colors = ["--q1", "--q2", "--q3", "--q4"].map(css);
     const rows = Object.values(byDay).sort((a, b) => (a.date < b.date ? -1 : 1));
     return {
-      title: `每日跑步日曆（${v.label}）`, sub: `每一格是一天，顏色越深${v.deeper}；${rangeLabel}，空白格＝沒有跑步`,
+      title: `跑步日曆（${v.label}）`,
       legend: bins.map(([, , l], i) => [l, colors[i]]),
       option: {
         animation: false,
@@ -712,7 +711,7 @@ function renderCard(el) {
   const spec = SPECS[id]();
   const showTable = el.dataset.view === "table";
   const nData = spec.table.rows.length;
-  el.innerHTML = `<div class="card-head"><div><p class="card-title">${spec.phase ? `<span class="phase">${esc(spec.phase)}</span>` : ""}${esc(spec.title)}</p><p class="card-sub">${esc(spec.sub || "")}</p></div>
+  el.innerHTML = `<div class="card-head"><div><p class="card-title">${spec.phase ? `<span class="phase">${esc(spec.phase)}</span>` : ""}${esc(spec.title)}</p>${spec.sub ? `<p class="card-sub">${esc(spec.sub)}</p>` : ""}</div>
     <button type="button" aria-pressed="${showTable}">${showTable ? "圖表" : "表格"}</button></div>` +
     (spec.legend && !showTable ? `<div class="legend">${spec.legend.map(([n, c]) => `<span><i style="background:${c}"></i>${esc(n)}</span>`).join("")}</div>` : "") +
     (nData === 0 ? `<div class="empty">此時間範圍沒有資料</div>` : showTable ? tableHTML(spec.table) : `<div class="chart"></div>`);
