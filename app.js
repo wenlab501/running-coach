@@ -159,7 +159,7 @@ unlockRemembered();
 const CAT_ORDER = ["steady_outdoor", "steady_treadmill", "threshold_treadmill", "interval_treadmill", "interval_track", "tempo_outdoor", "race"];
 const CAT_SLOT = Object.fromEntries(CAT_ORDER.map((c, i) => [c, `--s${i + 1}`]));
 const METRICS = { cad: ["步頻", "spm"], step: ["步幅", "mm"], gct: ["觸地時間", "ms"] };
-const state = { mode: null, data: null, range: 182, band: null, metric: "cad", cat: "all", tab: "dashboard", rendered: {} };
+const state = { mode: null, data: null, range: 182, band: null, metric: "cad", vol: "min", cat: "all", tab: "dashboard", rendered: {} };
 const charts = new Map();
 
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -220,6 +220,21 @@ const axisTip = (unit, nd = 0) => (ps) => `${tipDate(ps)}<br>` + ps.filter((p) =
 const itemTip = (lines) => (p) => lines(p.data.raw || {}, p).filter(Boolean).join("<br>");
 
 /* ================= dashboard chart specs ================= */
+/* 計量方式 for the daily calendar and the weekly stacked bars (訓練負荷). Bins are fixed display cut-offs
+ * chosen near the quartiles of the past year's sessions, not physiological zones. */
+const VOL = {
+  min: { label: "時間", unit: "分", nd: 0, day: (s) => s.run_min, wkey: "by_cat", deeper: "跑得越久",
+    bins: [[0, 30, "< 30 分"], [30, 60, "30–59 分"], [60, 90, "60–89 分"], [90, null, "≥ 90 分"]],
+    title: "每週跑步時間（分鐘）", sub: "依課表類型堆疊；不含走路與停止" },
+  km: { label: "距離", unit: "km", nd: 1, day: (s) => s.dist_km, wkey: "by_cat_km", deeper: "跑得越遠",
+    bins: [[0, 5, "< 5 km"], [5, 8, "5–8 km"], [8, 12, "8–12 km"], [12, null, "≥ 12 km"]],
+    title: "每週距離（km）", sub: "依課表類型堆疊；總距離，含暖身與緩和的走路" },
+  load: { label: "負荷", unit: "", nd: 0, day: (s) => s.load, wkey: "by_cat_load", deeper: "負荷越高",
+    bins: [[0, 75, "< 75"], [75, 125, "75–124"], [125, 175, "125–174"], [175, null, "≥ 175"]],
+    title: "每週訓練負荷（Garmin）", sub: "依課表類型堆疊；Garmin 依心率估算的單次課負荷，與「急性與慢性訓練負荷」同源" },
+};
+const volFmt = (v, k = state.vol) => `${fmt(v, VOL[k].nd)}${VOL[k].unit ? ` ${VOL[k].unit}` : ""}`;
+
 const SPECS = {
   // GitHub-style daily calendar: colour = running minutes that day (4 bins); 12 months (6 on phones)
   calendar: () => {
@@ -228,11 +243,12 @@ const SPECS = {
     const start = addDays(end, -days);
     const byDay = {};
     for (const s of state.data.sessions) if (s.date >= start && s.date <= end) byDay[s.date] = s;
-    const bins = [[1, 29, "< 30 分"], [30, 59, "30–59 分"], [60, 89, "60–89 分"], [90, 100000, "≥ 90 分"]];
+    const v = VOL[state.vol];
+    const bins = v.bins;
     const colors = ["--q1", "--q2", "--q3", "--q4"].map(css);
     const rows = Object.values(byDay).sort((a, b) => (a.date < b.date ? -1 : 1));
     return {
-      title: "每日跑步日曆", sub: `每一格是一天，顏色越深跑得越久；${isMobile() ? "最近 6 個月" : "最近 12 個月"}，空白格＝沒有跑步`,
+      title: `每日跑步日曆（${v.label}）`, sub: `每一格是一天，顏色越深${v.deeper}；${isMobile() ? "最近 6 個月" : "最近 12 個月"}，空白格＝沒有跑步`,
       legend: bins.map(([, , l], i) => [l, colors[i]]),
       option: {
         animation: false,
@@ -240,9 +256,9 @@ const SPECS = {
         tooltip: { confine: true, backgroundColor: css("--surface-1"), borderColor: css("--border"),
           textStyle: { color: css("--text-primary"), fontSize: 12 },
           formatter: (p) => { const s = byDay[p.value[0]];
-            return s ? `${s.date}（${wk(s.date)}）<br>${esc(catLabel(s.cat))}<br>跑步 ${fmt(s.run_min)} 分 · ${fmt(s.dist_km, 1)} km` : ""; } },
+            return s ? `${s.date}（${wk(s.date)}）<br>${esc(catLabel(s.cat))}<br>跑步 ${fmt(s.run_min)} 分 · ${fmt(s.dist_km, 1)} km<br>負荷 ${fmt(s.load)}` : ""; } },
         visualMap: { show: false, type: "piecewise", dimension: 1,
-          pieces: bins.map(([min, max], i) => ({ min, max, color: colors[i] })) },
+          pieces: bins.map(([lo, hi], i) => ({ gte: lo, ...(hi == null ? {} : { lt: hi }), color: colors[i] })) },
         calendar: { range: [start, end], top: 22, left: 30, right: 6, bottom: 6, cellSize: ["auto", 14],
           splitLine: { show: false }, yearLabel: { show: false },
           itemStyle: { color: css("--grid"), borderColor: css("--surface-1"), borderWidth: 2 },
@@ -250,26 +266,28 @@ const SPECS = {
           monthLabel: { nameMap: ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"],
             color: css("--text-muted"), fontSize: 10 } },
         series: [{ type: "heatmap", coordinateSystem: "calendar",
-          data: rows.map((s) => [s.date, Math.max(1, Math.round(s.run_min || 0))]) }],
+          data: rows.filter((s) => v.day(s) != null).map((s) => [s.date, v.day(s)]) }],
       },
-      table: { cols: ["日期", "星期", "類型", "跑步分鐘", "距離 km"],
-        rows: rows.slice().reverse().map((s) => [s.date, wk(s.date), catLabel(s.cat), s.run_min, s.dist_km]) },
+      table: { cols: ["日期", "星期", "類型", "跑步分鐘", "距離 km", "Garmin 負荷"],
+        rows: rows.slice().reverse().map((s) => [s.date, wk(s.date), catLabel(s.cat), s.run_min, s.dist_km, s.load]) },
     };
   },
   weekly: () => {
     const weeks = state.data.weekly.filter((w) => inRange(addDays(w.week, 6)));
-    const cats = CAT_ORDER.filter((c) => weeks.some((w) => w.by_cat[c]));
+    const v = VOL[state.vol];
+    const by = (w) => w[v.wkey] || {};
+    const cats = CAT_ORDER.filter((c) => weeks.some((w) => by(w)[c]));
     return {
-      title: "每週跑步時間（分鐘）", sub: "依課表類型堆疊；不含走路與停止",
+      title: v.title, sub: v.sub,
       legend: cats.map((c) => [catLabel(c), css(CAT_SLOT[c])]),
       option: base({
         series: cats.map((c) => ({ name: catLabel(c), type: "bar", stack: "w", barMaxWidth: 22,
-          data: weeks.map((w) => [toT(w.week), w.by_cat[c] ?? 0]),
+          data: weeks.map((w) => [toT(w.week), by(w)[c] ?? 0]),
           itemStyle: { color: css(CAT_SLOT[c]), borderColor: css("--surface-1"), borderWidth: 1 } })),
         tooltip: { ...base().tooltip, formatter: (ps) => `${tipDate(ps)} 起的一週<br>` +
-          ps.filter((p) => p.value[1]).map((p) => `${p.marker}${p.seriesName}：${fmt(p.value[1])} 分`).join("<br>") +
-          `<br>合計：${fmt(ps.reduce((a, p) => a + (p.value[1] || 0), 0))} 分` } }),
-      table: { cols: ["週（週一）", "次數", "跑步分鐘", "距離 km"], rows: weeks.map((w) => [w.week, w.n, w.run_min, w.dist_km]) },
+          ps.filter((p) => p.value[1]).map((p) => `${p.marker}${p.seriesName}：${volFmt(p.value[1])}`).join("<br>") +
+          `<br>合計：${volFmt(ps.reduce((a, p) => a + (p.value[1] || 0), 0))}` } }),
+      table: { cols: ["週（週一）", "次數", "跑步分鐘", "距離 km", "Garmin 負荷"], rows: weeks.map((w) => [w.week, w.n, w.run_min, w.dist_km, w.load]) },
     };
   },
   load: () => {
@@ -1057,6 +1075,12 @@ function init(data) {
     state.range = b.dataset.range === "all" ? "all" : +b.dataset.range;
     document.querySelectorAll("#range-filter button").forEach((x) => x.classList.toggle("on", x === b));
     renderDashboard();
+  });
+  document.getElementById("vol-filter").addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    state.vol = b.dataset.vol;
+    document.querySelectorAll("#vol-filter button").forEach((x) => x.classList.toggle("on", x === b));
+    ["calendar", "weekly"].forEach((id) => renderCard(document.querySelector(`[data-chart="${id}"]`)));
   });
   document.getElementById("band-filter").addEventListener("click", (e) => {
     const b = e.target.closest("button"); if (!b) return;

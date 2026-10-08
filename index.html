@@ -12,7 +12,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#2a78d6">
-<link rel="stylesheet" href="style.css?v=20261008d">
+<link rel="stylesheet" href="style.css?v=20261008e">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.6.0/echarts.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
@@ -110,6 +110,7 @@
       <section class="block" id="sec-load">
         <h2>訓練負荷</h2>
         <p class="block-desc">跑步時間、Garmin 計算的負荷，以及你主觀感受的負荷（sRPE）。</p>
+        <div class="filters inline" id="vol-filter" role="group" aria-label="計量方式"><span class="filter-label">計量：</span><button data-vol="min" class="on">時間</button><button data-vol="km">距離</button><button data-vol="load">負荷</button></div>
         <div class="grid">
           <div class="card wide" data-chart="calendar"></div>
           <div class="card wide" data-chart="weekly"></div>
@@ -323,6 +324,6 @@
     </nav>
   </div>
 </main>
-<script src="app.js?v=20261008d"></script>
+<script src="app.js?v=20261008e"></script>
 </body>
 </html>
