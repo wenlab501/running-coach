@@ -218,6 +218,19 @@ function tipDate(p) {
 const axisTip = (unit, nd = 0) => (ps) => `${tipDate(ps)}<br>` + ps.filter((p) => p.value?.[1] != null && p.seriesName !== "lo")
   .map((p) => `${p.marker}${p.seriesName}：${fmt(p.value[1], nd)} ${unit}`).join("<br>");
 const itemTip = (lines) => (p) => lines(p.data.raw || {}, p).filter(Boolean).join("<br>");
+// trailing median of the last n sessions (≥ minN), computed over all sessions so the line is right at the range start;
+// broken (null) across gaps > gapDays so a layoff is not drawn as continuous data
+function trendLine(rows, val, n = 5, minN = 3, gapDays = 21) {
+  const out = [];
+  rows.forEach((r, i) => {
+    if (i && toT(r.date) - toT(rows[i - 1].date) > gapDays * DAY) out.push([toT(r.date) - DAY, null]);
+    const w = rows.slice(Math.max(0, i - n + 1), i + 1).map(val).filter((x) => x != null).sort((a, b) => a - b);
+    if (w.length >= minN) out.push([toT(r.date), w.length % 2 ? w[(w.length - 1) / 2] : (w[w.length / 2 - 1] + w[w.length / 2]) / 2]);
+  });
+  return out.filter(([t, v]) => v == null || inRange(new Date(t).toISOString().slice(0, 10)));
+}
+const trend = (name, data, color) => line(name, data, color, { showSymbol: false, silent: true, tooltip: { show: false },
+  lineStyle: { width: 2, color, opacity: 0.55 }, z: 1 });
 
 /* ================= dashboard chart specs ================= */
 /* 計量方式 for the daily calendar and the weekly stacked bars (訓練負荷). Bins are fixed display cut-offs
@@ -363,24 +376,35 @@ const SPECS = {
     };
   },
   ef: () => {
-    const ss = S().filter((s) => s.cat === "steady_outdoor" && s.ef && s.main_min >= 20);
+    const all = state.data.sessions.filter((s) => s.cat === "steady_outdoor" && s.ef && s.main_min >= 20);
+    const ss = all.filter((s) => inRange(s.date));
     const v = (s) => s.ef * 1000 / 60;
+    const b = (state.data.assessment?.domains || []).find((d) => d.key === "aerobic_outdoor");
+    const band = b?.baseline != null && b?.swc != null
+      ? { silent: true, itemStyle: { color: css("--band") }, label: { show: true, position: "insideTopLeft", color: css("--text-muted"), fontSize: 11 },
+          data: [[{ yAxis: b.baseline - b.swc, name: "個人基準範圍" }, { yAxis: b.baseline + b.swc }]] } : undefined;
     return {
-      title: "戶外穩態段效率因子（m/min ÷ bpm）", sub: "越高代表同樣心率跑得越快；夏季高溫會使數值偏低",
+      title: "戶外穩態段效率因子（m/min ÷ bpm）", sub: "越高代表同樣心率跑得越快；線＝近 5 堂中位數，色帶＝個人基準範圍；夏季高溫會使數值偏低",
       option: base({ tooltip: { ...base().tooltip, trigger: "item", formatter: itemTip((r) => [r.date, `效率因子 ${fmt(v(r), 3)}`, `${pace(r.speed)} · 心率 ${fmt(r.hr)} bpm · ${fmt(r.main_min)} 分`]) },
-        series: [dots("效率因子", ss.map((s) => ({ value: [toT(s.date), +v(s).toFixed(3)], raw: s })), css("--s1"))] }),
+        series: [dots("效率因子", ss.map((s) => ({ value: [toT(s.date), +v(s).toFixed(3)], raw: s })), css("--s1"), band ? { markArea: band } : {}),
+                 trend("近 5 堂中位數", trendLine(all, v), css("--s1"))] }),
       table: { cols: ["日期", "效率因子", "配速", "平均心率", "主段分鐘", "來源"], rows: ss.map((s) => [s.date, fmt(v(s), 3), pace(s.speed), s.hr, s.main_min, s.src === "notion" ? "日誌" : "推測"]) },
     };
   },
   decouple: () => {
-    const ss = S().filter((s) => ["steady_outdoor", "steady_treadmill"].includes(s.cat) && s.decouple != null && s.main_min >= 30);
+    const all = state.data.sessions.filter((s) => ["steady_outdoor", "steady_treadmill"].includes(s.cat) && s.decouple != null && s.main_min >= 30);
+    const ss = all.filter((s) => inRange(s.date));
     const grp = [["戶外", false, "--s1"], ["跑步機", true, "--s2"]];
+    const ref = { silent: true, symbol: "none", label: { show: true, position: "insideEndTop", color: css("--text-muted"), fontSize: 11, formatter: (p) => p.name },
+      data: [{ yAxis: 0, name: "", lineStyle: { color: css("--axis"), type: "solid" } },
+             { yAxis: 5, name: "5%（經驗值）", lineStyle: { color: css("--text-muted"), type: "dashed" } }] };
     return {
-      title: "心率漂移（%）", sub: "前後半段效率差；正值＝後半同速度心率較高；主段 ≥ 30 分鐘",
+      title: "心率漂移（%）", sub: "前後半段效率差，正值＝後半心率較高；線＝近 5 堂中位數；5% 為常用經驗值，非驗證標準；主段 ≥ 30 分鐘",
       legend: grp.map(([n, , c]) => [n, css(c)]),
       option: base({ tooltip: { ...base().tooltip, trigger: "item", formatter: itemTip((r) => [r.date, `漂移 ${fmt(r.decouple, 1)}%`, `主段 ${fmt(r.main_min)} 分`]) },
-        series: grp.map(([n, tm, c]) => dots(n, ss.filter((s) => s.treadmill === tm).map((s) => ({ value: [toT(s.date), s.decouple], raw: s })), css(c),
-          { markLine: { silent: true, symbol: "none", lineStyle: { color: css("--axis"), type: "solid" }, data: [{ yAxis: 0 }], label: { show: false } } })) }),
+        series: [...grp.map(([n, tm, c], i) => dots(n, ss.filter((s) => s.treadmill === tm).map((s) => ({ value: [toT(s.date), s.decouple], raw: s })), css(c),
+          i === 0 ? { markLine: ref } : {})),
+          ...grp.map(([n, tm, c]) => trend(`${n}（近 5 堂中位數）`, trendLine(all.filter((s) => s.treadmill === tm), (s) => s.decouple), css(c)))] }),
       table: { cols: ["日期", "環境", "漂移 %", "主段分鐘"], rows: ss.map((s) => [s.date, s.treadmill ? "跑步機" : "戶外", s.decouple, s.main_min]) },
     };
   },
@@ -408,7 +432,8 @@ const SPECS = {
       phase: "強度段", title: "閾值測試：速度與主段後半心率",
       sub: ss.length ? `點的面積與主段時間成正比（${fmt(mMin)}–${fmt(mMax)} 分）；顏色由淺到深＝由早到晚；色帶＝個人閾值區間 145–150 bpm` : "",
       legend: ss.length ? [[`最早 ${ss[0].date}`, colorAt(0)], [`最近 ${ss.at(-1).date}`, colorAt(ss.length - 1)]] : [],
-      option: base({ xAxis: valueX("設定速度（km/h）"), grid: { left: 46, right: 18, top: 18, bottom: 40 },
+      option: base({ xAxis: { ...valueX("設定速度（km/h）"), min: (v) => Math.floor((v.min - 0.3) * 2) / 2, max: (v) => Math.ceil((v.max + 0.3) * 2) / 2 },
+        grid: { left: 46, right: 18, top: 18, bottom: 40 },
         yAxis: { ...base().yAxis, name: "", min: (v) => Math.floor(Math.min(v.min - 3, 140)), max: (v) => Math.ceil(Math.max(v.max + 3, 152)) },
         tooltip: { ...base().tooltip, trigger: "item", formatter: itemTip((r) => [r.date, `設定 ${r.set_speed} km/h × ${fmt(r.main_min)} 分`, `後半平均心率 ${fmt(r.hr_final_half)} bpm`, `最後 5 分鐘 ${fmt(r.hr_last5)} bpm`, r.rpe ? `RPE ${r.rpe}` : "", r.plan || ""]) },
         series: [{ type: "scatter", name: "測試", labelLayout: { hideOverlap: true },
