@@ -124,6 +124,11 @@ details.fold[open] > summary { margin-bottom: 8px; }
 .next-plan .plan-line { font-size: 15px; margin: 2px 0 6px; color: var(--text-primary); }
 .next-plan details > summary { cursor: pointer; color: var(--accent); font-size: 13px; margin: 6px 0; }
 .next-plan ul { margin: 4px 0; padding-left: 20px; font-size: 13px; }
+.next-plan ul.plan-options { list-style: none; padding-left: 0; margin: 2px 0 8px; font-size: 14px; }
+.next-plan ul.plan-options li { margin: 4px 0; }
+.opt-label { display: inline-block; font-size: 12px; padding: 1px 7px; margin-right: 6px; border-radius: 10px; border: 1px solid var(--border); color: var(--text-secondary); }
+.opt-label.main { border-color: var(--accent); color: var(--accent); }
+.opt-when { display: block; font-size: 12px; color: var(--text-muted); margin: 1px 0 0 2px; }
 .next-plan .evidence { font-size: 12px; color: var(--text-muted); margin: 6px 0 0; }
 .next-race .card-title { margin-bottom: 2px; }
 .head-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
@@ -164,6 +169,11 @@ ol.changes .muted { font-size: 12px; }
 .coach-empty { margin-top: 24px; }
 .coach-entry { margin-bottom: 12px; }
 .coach-entry .coach-summary { font-size: 15px; margin: 6px 0 8px; }
+.coach-entry .coach-pj { font-size: 15px; font-weight: 600; margin: 6px 0 4px; color: var(--text-primary); }
+.coach-entry .coach-action { font-size: 14px; margin: 0 0 8px; color: var(--text-secondary); }
+.coach-entry details.change-log { margin: 10px 0 4px; }
+.coach-entry details.change-log > summary { cursor: pointer; color: var(--accent); font-size: 13px; }
+.coach-entry tr.plan-opt td { color: var(--text-secondary); font-size: 13px; }
 .coach-entry details summary { cursor: pointer; font-size: 13px; color: var(--accent); margin-bottom: 6px; }
 .coach-entry h4 { font-size: 15px; font-weight: 700; color: var(--text-primary); margin: 14px 0 4px; }
 .coach-entry h5 { font-size: 13px; font-weight: 700; color: var(--text-secondary); margin: 10px 0 2px; }
@@ -199,6 +209,7 @@ ol.changes .muted { font-size: 12px; }
 .chart { width: 100%; height: 260px; }
 .card.wide .chart { height: 300px; }
 .card[data-chart="calendar"] .chart { height: 150px; }
+.card[data-chart="calendar"] .chart-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .empty { color: var(--text-muted); font-size: 13px; padding: 40px 0; text-align: center; }
 
 .table-wrap { overflow-x: auto; max-height: 420px; overflow-y: auto; }

@@ -239,8 +239,11 @@ const SPECS = {
   // GitHub-style daily calendar: colour = running minutes that day (4 bins); 12 months (6 on phones)
   calendar: () => {
     const end = lastDate();
-    const days = isMobile() ? 182 : 364;
-    const start = addDays(end, -days);
+    const first = state.data.sessions[0]?.date || end;
+    const start = state.range === "all" ? first : addDays(end, -(state.range - 1));
+    const nDays = Math.round((toT(end) - toT(start)) / DAY) + 1;
+    const weeks = Math.ceil(((new Date(toT(start)).getDay() + 6) % 7 + nDays) / 7);
+    const rangeLabel = { all: "全部期間", 182: "近 26 週", 84: "近 12 週", 28: "近 4 週" }[state.range] || "";
     const byDay = {};
     for (const s of state.data.sessions) if (s.date >= start && s.date <= end) byDay[s.date] = s;
     const v = VOL[state.vol];
@@ -248,7 +251,7 @@ const SPECS = {
     const colors = ["--q1", "--q2", "--q3", "--q4"].map(css);
     const rows = Object.values(byDay).sort((a, b) => (a.date < b.date ? -1 : 1));
     return {
-      title: `每日跑步日曆（${v.label}）`, sub: `每一格是一天，顏色越深${v.deeper}；${isMobile() ? "最近 6 個月" : "最近 12 個月"}，空白格＝沒有跑步`,
+      title: `每日跑步日曆（${v.label}）`, sub: `每一格是一天，顏色越深${v.deeper}；${rangeLabel}，空白格＝沒有跑步`,
       legend: bins.map(([, , l], i) => [l, colors[i]]),
       option: {
         animation: false,
@@ -259,7 +262,7 @@ const SPECS = {
             return s ? `${s.date}（${wk(s.date)}）<br>${esc(catLabel(s.cat))}<br>跑步 ${fmt(s.run_min)} 分 · ${fmt(s.dist_km, 1)} km<br>負荷 ${fmt(s.load)}` : ""; } },
         visualMap: { show: false, type: "piecewise", dimension: 1,
           pieces: bins.map(([lo, hi], i) => ({ gte: lo, ...(hi == null ? {} : { lt: hi }), color: colors[i] })) },
-        calendar: { range: [start, end], top: 22, left: 30, right: 6, bottom: 6, cellSize: ["auto", 14],
+        calendar: { range: [start, end], top: 22, left: 30, right: 6, bottom: 6, cellSize: [14, 14],
           splitLine: { show: false }, yearLabel: { show: false },
           itemStyle: { color: css("--grid"), borderColor: css("--surface-1"), borderWidth: 2 },
           dayLabel: { firstDay: 1, nameMap: ["日", "一", "二", "三", "四", "五", "六"], color: css("--text-muted"), fontSize: 10 },
@@ -267,6 +270,25 @@ const SPECS = {
             color: css("--text-muted"), fontSize: 10 } },
         series: [{ type: "heatmap", coordinateSystem: "calendar",
           data: rows.filter((s) => v.day(s) != null).map((s) => [s.date, v.day(s)]) }],
+      },
+      // cells as wide as the card allows (max 22 px); below 10 px the chart keeps 10 px cells and scrolls sideways
+      beforeInit: (box, opt) => {
+        const avail = (box.clientWidth || (isMobile() ? 330 : 900)) - 36;
+        let cell = Math.min(22, Math.floor(avail / weeks));
+        const scroll = cell < 10;
+        if (scroll) cell = 10;
+        const h = Math.min(cell, 16);
+        opt.calendar.cellSize = [cell, h];
+        opt.calendar.right = Math.max(6, avail - cell * weeks + 6);
+        box.style.height = `${22 + 7 * h + 8}px`;
+        if (scroll) {
+          const wrap = document.createElement("div");
+          wrap.className = "chart-scroll";
+          box.before(wrap); wrap.append(box);
+          box.style.width = `${weeks * cell + 36}px`;
+          opt.calendar.right = 6;
+          setTimeout(() => { wrap.scrollLeft = wrap.scrollWidth; }, 0);
+        }
       },
       table: { cols: ["日期", "星期", "類型", "跑步分鐘", "距離 km", "Garmin 負荷"],
         rows: rows.slice().reverse().map((s) => [s.date, wk(s.date), catLabel(s.cat), s.run_min, s.dist_km, s.load]) },
@@ -698,6 +720,7 @@ function renderCard(el) {
   charts.get(id)?.dispose();
   charts.delete(id);
   if (!showTable && nData) {
+    if (spec.beforeInit) spec.beforeInit(el.querySelector(".chart"), spec.option);
     const c = echarts.init(el.querySelector(".chart"), null, { renderer: "svg" });
     c.setOption(spec.option);
     charts.set(id, c);
@@ -762,7 +785,7 @@ function sessionDetail(date) {
     parts.push(item("隔天早上", n ? `HRV − 基準中點 ${n.hrv_vs_baseline_mid ?? "—"} ms · 安靜心率 − 7 天平均 ${n.rhr_vs_7d ?? "—"} bpm · 睡眠分數 ${n.sleep_score ?? "—"}` : "尚無資料"));
     if ((a.flags || []).length) parts.push(item("提醒", esc(a.flags.join("；"))));
   }
-  const coach = fb ? `<div class="session-fb"><p class="card-title">AI 課後回饋：${esc(fb.title)}</p><p>${esc(fb.summary || "")}</p>
+  const coach = fb ? `<div class="session-fb"><p class="card-title">AI 課後回饋：${esc(fb.title)}</p><p>${esc(pj(fb))}</p>
     <p class="evidence"><a href="#coach">在「教練建議」看完整內容</a>${fb.notion_url ? ` · <a href="${esc(fb.notion_url)}" target="_blank" rel="noopener">在 Notion 開啟</a>` : ""}</p></div>`
     : `<p class="muted">這堂課沒有 AI 課後回饋。</p>`;
   return `<div class="detail-inner"><dl class="session-detail">${parts.join("")}</dl>${coach}</div>`;
@@ -914,12 +937,25 @@ function coachUnits(entries) {
   return { sessions: sessions.sort(desc), weeks: weeks.sort(desc), months: months.sort(desc) };
 }
 
+// decision first: coach-2 entries carry primary_judgment; legacy entries fall back to summary
+const pj = (e) => e?.primary_judgment || e?.summary || "";
+function mainAction(e) {
+  if (e.schema !== "coach-2") return null;
+  if (e.type === "課後回饋") return e.action_24_48h?.[0] ? ["下一步", e.action_24_48h[0]] : null;
+  if (e.type === "週教練報告") return e.priorities?.[0] ? ["首要任務", e.priorities[0]] : null;
+  if (e.type === "月度策略") return e.primary_goal ? ["主要目標", e.primary_goal] : null;
+  return null;
+}
+
 function coachCard(u, open = false) {
   const meta = u.parts.map((e) => [e.direction ? `建議方向：${esc(e.direction)}` : "", e.confidence ? `信心：${esc(e.confidence)}` : ""])
     .flat().filter(Boolean);
+  const e0 = u.parts[0], act = u.parts.length === 1 ? mainAction(e0) : null;
   const summary = u.parts.length > 1
     ? u.parts.map((e) => `<p class="coach-summary"><b>${e.type === "週回顧" ? "回顧" : "計畫"}：</b>${esc(e.summary || "")}</p>`).join("")
-    : `<p class="coach-summary">${esc(u.parts[0].summary || "")}</p>`;
+    : e0.schema === "coach-2"
+      ? `<p class="coach-pj">${esc(e0.primary_judgment)}</p>${act ? `<p class="coach-action"><b>${act[0]}：</b>${esc(act[1])}</p>` : ""}`
+      : `<p class="coach-summary">${esc(e0.summary || "")}</p>`;
   const body = u.parts.map((e) => (u.parts.length > 1 ? `<h4 class="part-h">${e.type === "週回顧" ? "回顧" : "計畫與調整"}</h4>` : "") +
     (e.body_html || "") + (e.evidence ? `<p class="evidence">資料依據：${esc(e.evidence)}</p>` : "")).join("");
   const links = u.parts.filter((e) => e.notion_url).map((e) =>
@@ -998,15 +1034,20 @@ function planCard() {
   const todayRow = rows.find((r) => r.iso === today);
   const rest = rows.filter((r) => r.iso >= today);
   const detail = (r) => [r.speed, r.time, r.rpe ? `RPE ${r.rpe}` : "", r.note].filter(Boolean).map(esc).join("｜");
+  const opts = (r) => (r.options || []).length ? `<ul class="plan-options">${r.options.map((o) =>
+    `<li><span class="opt-label">${esc(o.label)}</span>${esc(o.content)}${[o.speed, o.time, o.rpe ? `RPE ${o.rpe}` : ""].filter(Boolean).map((x) => `｜${esc(x)}`).join("")}
+     <span class="opt-when">條件：${esc(o.when)}</span></li>`).join("")}</ul>` : "";
+  const tableRows = (rs) => rs.flatMap((r) => [[r.date, r.content, r.speed || "—", r.time || "—", r.rpe || "—", r.note || "—"],
+    ...(r.options || []).map((o) => ["", `${o.label}：${o.content}`, o.speed || "—", o.time || "—", o.rpe || "—", `條件：${o.when}`])]);
   if (!rest.length) return `<article class="card wide next-plan"><p class="card-title">下一次課表</p>
     <p class="card-sub">本週課表已結束，等待下一份週教練報告（每週日 23:00 自動產生）。</p></article>`;
   const rules = e.adjustment_rules || [];
   return `<article class="card wide next-plan">
     <p class="card-title">${next ? `下一次課表：${esc(next.date)} ${esc(next.content)}` : "本週沒有剩下的跑步課"}</p>
-    ${next ? `<p class="plan-line">${detail(next) || "—"}</p>` : ""}
+    ${next ? `<p class="plan-line">${(next.options || []).length ? `<span class="opt-label main">建議</span>` : ""}${detail(next) || "—"}</p>${opts(next)}` : ""}
     ${todayRow && todayRow !== next ? `<p class="card-sub">今天 ${esc(todayRow.date)}：${esc(todayRow.content)}${detail(todayRow) ? `｜${detail(todayRow)}` : ""}</p>` : ""}
     <details><summary>本週剩餘安排${rules.length ? "與調整條件" : ""}</summary>
-      ${tableHTML({ cols: ["日期", "內容", "速度／配速", "時間", "RPE", "備註"], rows: rest.map((r) => [r.date, r.content, r.speed || "—", r.time || "—", r.rpe || "—", r.note || "—"]) }, [1, 2, 5])}
+      ${tableHTML({ cols: ["日期", "內容", "速度／配速", "時間", "RPE", "備註"], rows: tableRows(rest) }, [1, 2, 5])}
       ${rules.length ? `<p class="card-sub">調整條件</p><ul>${rules.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
     </details>
     <p class="evidence">來源：<a href="#coach">${esc(week.title)}</a></p></article>`;
@@ -1026,13 +1067,13 @@ function renderHome() {
   if (last) {
     const fb = (d.coach?.entries || []).find((e) => e.type === "課後回饋" && e.date === last.date);
     parts.push(card("最近一次訓練", `<p class="card-sub">${last.date}（${wk(last.date)}）· ${esc(catLabel(last.cat))} · ${fmt(last.dist_km, 1)} km · ${fmt(last.run_min)} 分${last.rpe != null ? ` · RPE ${fmt(last.rpe)}` : ""}</p>
-      <p>${keyMetric(last)}</p>${fb ? `<p class="coach-summary">${esc(fb.summary || "")}</p>` : ""}<p class="evidence"><a href="#coach">教練建議</a></p>`));
+      <p>${keyMetric(last)}</p>${fb ? `<p class="coach-summary">${esc(pj(fb))}</p>` : ""}<p class="evidence"><a href="#coach">教練建議</a></p>`));
   }
   const u = coachUnits(d.coach?.entries || []);
   const w = u.weeks[0], m = u.months[0];
   if (w) parts.push(card("本週教練方向", `<p class="card-sub">${esc(w.title)}${w.parts.at(-1).direction ? ` · 建議方向：${esc(w.parts.at(-1).direction)}` : ""}</p>
-    <p class="coach-summary">${esc(w.parts.at(-1).summary || "")}</p>`));
-  if (m) parts.push(card("本月策略", `<p class="card-sub">${esc(m.title)}</p><p class="coach-summary">${esc(m.parts[0].summary || "")}</p>`));
+    <p class="coach-summary">${esc(pj(w.parts.at(-1)))}</p>`));
+  if (m) parts.push(card("本月策略", `<p class="card-sub">${esc(m.title)}</p><p class="coach-summary">${esc(pj(m.parts[0]))}</p>`));
   const nx = (a.races?.upcoming || []).find((x) => daysTo(x.date) >= 0);
   if (nx) parts.push(card(`下一場賽事：${esc(nx.name)}`, `<p class="card-sub">${nx.date}（${wk(nx.date)}）· ${raceDist(nx.distance_km)} · 還有 ${daysTo(nx.date)} 天${nx.goal ? ` · 目標：${esc(nx.goal)}` : ""}</p>`));
   document.getElementById("home-root").innerHTML = parts.join("") +
@@ -1112,7 +1153,12 @@ function init(data) {
     history.pushState(null, "", location.pathname);
     routeFromHash();
   });
-  window.addEventListener("resize", () => charts.forEach((c) => c.resize()));
+  let calTimer = null;
+  window.addEventListener("resize", () => {
+    charts.forEach((c) => c.resize());
+    clearTimeout(calTimer);   // the calendar's cell size depends on the card width
+    calTimer = setTimeout(() => { const cal = document.querySelector('[data-chart="calendar"]'); if (cal?.offsetParent) renderCard(cal); }, 250);
+  });
   matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { state.rendered = {}; showTab(state.tab); });
   routeFromHash();
 }
