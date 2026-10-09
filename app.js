@@ -810,7 +810,7 @@ function sessionDetail(date) {
     if ((a.flags || []).length) parts.push(item("提醒", esc(a.flags.join("；"))));
   }
   const coach = fb ? `<div class="session-fb"><p class="card-title">AI 課後回饋：${esc(fb.title)}</p><p>${esc(pj(fb))}</p>
-    <p class="evidence"><a href="#coach">在「教練建議」看完整內容</a>${fb.notion_url ? ` · <a href="${esc(fb.notion_url)}" target="_blank" rel="noopener">在 Notion 開啟</a>` : ""}</p></div>`
+    <p class="evidence"><a href="#coach">在「教練建議」看完整內容</a></p></div>`
     : `<p class="muted">這堂課沒有 AI 課後回饋。</p>`;
   return `<div class="detail-inner"><dl class="session-detail">${parts.join("")}</dl>${coach}</div>`;
 }
@@ -982,12 +982,10 @@ function coachCard(u, open = false) {
       : `<p class="coach-summary">${esc(e0.summary || "")}</p>`;
   const body = u.parts.map((e) => (u.parts.length > 1 ? `<h4 class="part-h">${e.type === "週回顧" ? "回顧" : "計畫與調整"}</h4>` : "") +
     (e.body_html || "") + (e.evidence ? `<p class="evidence">資料依據：${esc(e.evidence)}</p>` : "")).join("");
-  const links = u.parts.filter((e) => e.notion_url).map((e) =>
-    `<a href="${esc(e.notion_url)}" target="_blank" rel="noopener">在 Notion 開啟${u.parts.length > 1 ? `（${e.type === "週回顧" ? "回顧" : "計畫"}）` : ""}</a>`);
   return `<article class="card wide coach-entry"><p class="card-title">${esc(u.title)}</p>
     <p class="card-sub">${[esc(u.sub || ""), ...[...new Set(meta)]].filter(Boolean).join(" · ")}</p>${summary}
     <details${open ? " open" : ""}><summary>完整內容</summary>${body}</details>
-    ${links.length ? `<p class="evidence">${links.join(" · ")}（填寫「我的回應」）</p>` : ""}</article>`;
+</article>`;
 }
 
 function renderCoach() {
