@@ -174,8 +174,6 @@ ol.changes .muted { font-size: 12px; }
 .coach-entry .coach-summary { font-size: 15px; margin: 6px 0 8px; }
 .coach-entry .coach-pj { font-size: 15px; font-weight: 600; margin: 6px 0 4px; color: var(--text-primary); }
 .coach-entry .coach-action { font-size: 14px; margin: 0 0 8px; color: var(--text-secondary); }
-.coach-entry details.change-log { margin: 10px 0 4px; }
-.coach-entry details.change-log > summary { cursor: pointer; color: var(--accent); font-size: 13px; }
 .coach-entry tr.plan-opt td { color: var(--text-secondary); font-size: 13px; }
 .coach-entry details summary { cursor: pointer; font-size: 13px; color: var(--accent); margin-bottom: 6px; }
 .coach-entry h4 { font-size: 15px; font-weight: 700; color: var(--text-primary); margin: 14px 0 4px; }
