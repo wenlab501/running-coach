@@ -158,6 +158,8 @@ unlockRemembered();
 /* ================= state & helpers ================= */
 const CAT_ORDER = ["steady_outdoor", "steady_treadmill", "threshold_treadmill", "interval_treadmill", "interval_track", "tempo_outdoor", "race"];
 const CAT_SLOT = Object.fromEntries(CAT_ORDER.map((c, i) => [c, `--s${i + 1}`]));
+const OTHER_ORDER = ["網球", "HIIT", "健行", "肌力"];   // weekly.other_load keys
+const OTHER_SLOT = Object.fromEntries(OTHER_ORDER.map((o, i) => [o, `--o${i + 1}`]));
 const METRICS = { cad: ["步頻", "spm"], step: ["步幅", "mm"], gct: ["觸地時間", "ms"] };
 const state = { mode: null, data: null, range: 182, band: null, metric: "cad", vol: "min", cat: "all", tab: "dashboard", rendered: {} };
 const charts = new Map();
@@ -244,7 +246,8 @@ const VOL = {
     title: "每週距離（km）", sub: "依課表類型堆疊；總距離，含暖身與緩和的走路" },
   load: { label: "負荷", unit: "", nd: 0, day: (s) => s.load, wkey: "by_cat_load",
     bins: [[0, 75, "< 75"], [75, 125, "75–124"], [125, 175, "125–174"], [175, null, "≥ 175"]],
-    title: "每週訓練負荷（Garmin）", sub: "依課表類型堆疊；Garmin 依心率估算的單次課負荷，與「急性與慢性訓練負荷」同源" },
+    title: "每週訓練負荷（Garmin）",
+    sub: "跑步依課表類型堆疊，另含網球、HIIT 等其他運動（不含步行）；Garmin 依心率估算，與「急性與慢性訓練負荷」同源，可能低估網球與 HIIT 的衝擊負荷" },
 };
 const volFmt = (v, k = state.vol) => `${fmt(v, VOL[k].nd)}${VOL[k].unit ? ` ${VOL[k].unit}` : ""}`;
 
@@ -311,17 +314,22 @@ const SPECS = {
     const v = VOL[state.vol];
     const by = (w) => w[v.wkey] || {};
     const cats = CAT_ORDER.filter((c) => weeks.some((w) => by(w)[c]));
+    // 負荷 mode also stacks the other sports (all-sport load, user decision 2026-10-09); time and distance stay running-only
+    const others = state.vol === "load" ? OTHER_ORDER.filter((o) => weeks.some((w) => w.other_load?.[o])) : [];
+    const bar = (name, color, val) => ({ name, type: "bar", stack: "w", barMaxWidth: 22, data: weeks.map((w) => [toT(w.week), val(w)]),
+      itemStyle: { color, borderColor: css("--surface-1"), borderWidth: 1 } });
     return {
       title: v.title, sub: v.sub,
-      legend: cats.map((c) => [catLabel(c), css(CAT_SLOT[c])]),
+      legend: [...cats.map((c) => [catLabel(c), css(CAT_SLOT[c])]), ...others.map((o) => [o, css(OTHER_SLOT[o])])],
       option: base({
-        series: cats.map((c) => ({ name: catLabel(c), type: "bar", stack: "w", barMaxWidth: 22,
-          data: weeks.map((w) => [toT(w.week), by(w)[c] ?? 0]),
-          itemStyle: { color: css(CAT_SLOT[c]), borderColor: css("--surface-1"), borderWidth: 1 } })),
+        series: [...cats.map((c) => bar(catLabel(c), css(CAT_SLOT[c]), (w) => by(w)[c] ?? 0)),
+                 ...others.map((o) => bar(o, css(OTHER_SLOT[o]), (w) => w.other_load?.[o] ?? 0))],
         tooltip: { ...base().tooltip, formatter: (ps) => `${tipDate(ps)} 起的一週<br>` +
           ps.filter((p) => p.value[1]).map((p) => `${p.marker}${p.seriesName}：${volFmt(p.value[1])}`).join("<br>") +
           `<br>合計：${volFmt(ps.reduce((a, p) => a + (p.value[1] || 0), 0))}` } }),
-      table: { cols: ["週（週一）", "次數", "跑步分鐘", "距離 km", "Garmin 負荷"], rows: weeks.map((w) => [w.week, w.n, w.run_min, w.dist_km, w.load]) },
+      table: { cols: ["週（週一）", "次數", "跑步分鐘", "距離 km", "跑步負荷", "其他運動負荷"],
+        rows: weeks.map((w) => [w.week, w.n, w.run_min, w.dist_km, w.load,
+          Object.values(w.other_load || {}).reduce((a, x) => a + x, 0) || "—"]) },
     };
   },
   load: () => {
